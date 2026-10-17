@@ -11,6 +11,12 @@ import { createCloudStore } from '../src/store-libsql.js';
 import { createProductionHandler } from '../src/production.js';
 
 const url = 'https://www.facebook.com/ads/library/?country=BR&view_all_page_id=982937401569675';
+const linkFixture = {
+  sales_url: 'https://example.com/vendas?utm_source=ads&ref=oferta',
+  checkout_url: 'https://checkout.example.com/pagar',
+  backredirect_url: 'https://example.com/voltar',
+  upsell_url: 'https://example.com/upsell'
+};
 const legacySchema = [
   "CREATE TABLE offers(id TEXT PRIMARY KEY,name TEXT NOT NULL,url TEXT NOT NULL,created_at TEXT NOT NULL,last_attempt TEXT,last_error TEXT,state TEXT NOT NULL DEFAULT 'pending',scheduled_day TEXT,lease_token TEXT,lease_until TEXT)",
   'CREATE TABLE snapshots(id INTEGER PRIMARY KEY,offer_id TEXT NOT NULL REFERENCES offers(id) ON DELETE CASCADE,day TEXT NOT NULL,count INTEGER NOT NULL,precision TEXT NOT NULL,label TEXT NOT NULL,collected_at TEXT NOT NULL,UNIQUE(offer_id,day))'
@@ -37,7 +43,8 @@ test('SQLite existente recebe novos campos sem perder ofertas ou histórico; rea
     assert.equal(old.niche, null);
     assert.equal(old.funnel, null);
     assert.equal(old.market, null);
-    store.update('legacy', { offer_type: 'info', niche: 'Emagrecimento', funnel: 'X1', market: 'BR' });
+    for (const key of Object.keys(linkFixture)) assert.equal(old[key], null);
+    store.update('legacy', { offer_type: 'info', niche: 'Emagrecimento', funnel: 'X1', market: 'BR', ...linkFixture });
     store.close();
     store = createStore(path);
     const updated = store.get('legacy');
@@ -45,6 +52,7 @@ test('SQLite existente recebe novos campos sem perder ofertas ou histórico; rea
     assert.equal(updated.niche, 'Emagrecimento');
     assert.equal(updated.funnel, 'X1');
     assert.equal(updated.market, 'BR');
+    for (const [key, value] of Object.entries(linkFixture)) assert.equal(updated[key], value);
     assert.equal(updated.latest.count, 123);
     assert.equal(updated.history.length, 1);
   } finally { store?.close(); rmSync(directory, {recursive:true,force:true}); }
@@ -68,7 +76,8 @@ test('libSQL migra banco antigo, persiste classificação e mantém histórico e
     assert.equal(migrated.niche, 'Renda extra');
     assert.equal(migrated.offer_type, 'info');
     assert.equal(migrated.market, null);
-    await store.update('legacy', {offer_type:'drop', niche:'Prosperidade', funnel:'X1', market:'LATAM'});
+    for (const key of Object.keys(linkFixture)) assert.equal(migrated[key], null);
+    await store.update('legacy', {offer_type:'drop', niche:'Prosperidade', funnel:'X1', market:'LATAM', ...linkFixture});
     store.close();
     client = createClient({url:databaseUrl});
     store = await createCloudStore({client});
@@ -77,6 +86,7 @@ test('libSQL migra banco antigo, persiste classificação e mantém histórico e
     assert.equal(old.niche, 'Prosperidade');
     assert.equal(old.funnel, 'X1');
     assert.equal(old.market, 'LATAM');
+    for (const [key, value] of Object.entries(linkFixture)) assert.equal(old[key], value);
     assert.equal(old.latest.count, 123);
     assert.equal(old.history.length, 1);
   } finally { store?.close(); rmSync(directory, {recursive:true,force:true}); }
@@ -94,7 +104,7 @@ test('API de produção cadastra e edita tipo, nicho personalizado, mercados e t
   const base = `http://127.0.0.1:${server.address().port}`;
   const request = (path, method, body)=>fetch(base+path,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   try {
-    const response = await request('/api/offers','POST',{name:'Oferta classificada',url,offer_type:'info',niche:' Renda extra ',funnel:'QUIZ + VSL',market:' br '});
+    const response = await request('/api/offers','POST',{name:'Oferta classificada',url,offer_type:'info',niche:' Renda extra ',funnel:'QUIZ + VSL',market:' br ',...linkFixture});
     assert.equal(response.status,201);
     const created = await response.json();
     assert.equal(created.offer_type,'info');
@@ -102,6 +112,7 @@ test('API de produção cadastra e edita tipo, nicho personalizado, mercados e t
     assert.equal(created.funnel,'QUIZ + VSL');
     assert.equal(created.market,'BR');
     assert.equal(created.url,url);
+    for (const [key, value] of Object.entries(linkFixture)) assert.equal(created[key], value);
     assert.equal(created.latest.count,55);
     for(const funnel of ['TSL','VSL','QUIZ','QUIZ + VSL','X1']) {
       const changed = await request('/api/offers/'+created.id,'PATCH',{offer_type:'drop',niche:'Um nicho personalizado & específico',funnel});
@@ -133,6 +144,23 @@ test('API de produção cadastra e edita tipo, nicho personalizado, mercados e t
     const preserved = await renamed.json();
     assert.equal(preserved.funnel,'X1');
     assert.equal(preserved.market,'EUA');
+    for (const [key, value] of Object.entries(linkFixture)) assert.equal(preserved[key], value);
+    for (const key of Object.keys(linkFixture)) {
+      for (const invalid of ['javascript:alert(1)', 'data:text/html,test', '/relativo', 'https://user:pass@example.com', 'https://example.com/' + 'a'.repeat(2048), {url:'https://example.com'}]) {
+        const bad = {[key]: invalid};
+        assert.equal((await request('/api/offers','POST',{name:'Link inválido',url,...bad})).status,400);
+        assert.equal((await request('/api/offers/'+created.id,'PATCH',bad)).status,400);
+      }
+    }
+    const edited = await request('/api/offers/'+created.id,'PATCH',{checkout_url:' https://checkout.example.com/novo?a=1&b=2 ',upsell_url:''});
+    assert.equal(edited.status,200);
+    const data = await edited.json();
+    assert.equal(data.checkout_url,'https://checkout.example.com/novo?a=1&b=2');
+    assert.equal(data.upsell_url,null);
+    assert.equal(data.sales_url,linkFixture.sales_url);
+    assert.equal(data.backredirect_url,linkFixture.backredirect_url);
+    assert.equal(data.latest.count,55);
+    assert.equal(data.history.length,1);
     assert.equal(collected,1);
   } finally { await new Promise(resolve=>server.close(resolve));store?.close(); }
 });

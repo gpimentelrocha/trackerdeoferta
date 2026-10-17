@@ -63,7 +63,7 @@ export function createApp(store, collector, { auth = createPersonalAccess(), sta
     try {
       updates = offerDetails(req.body || {}, { partial: true });
       if (Object.hasOwn(req.body || {}, 'name')) updates.name = nameFrom(req);
-      if (!Object.keys(updates).length) return res.status(400).json({ error: 'Informe o nome, tipo, nicho, formato ou país/mercado que deseja editar.' });
+      if (!Object.keys(updates).length) return res.status(400).json({ error: 'Informe os dados da oferta ou os links do funil que deseja editar.' });
     } catch (error) { return res.status(400).json({ error: error.message }); }
     res.json(await store.update(req.params.id, updates));
   });

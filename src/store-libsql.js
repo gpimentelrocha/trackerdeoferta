@@ -76,7 +76,7 @@ export async function createCloudStore({ client, url = process.env.TURSO_DATABAS
     async create(name, url, details = {}) {
       const id = randomUUID();
       const values = offerDetails(details);
-      try { await client.execute(sql('INSERT INTO offers(id,name,url,created_at,offer_type,niche,funnel,market) VALUES(?,?,?,?,?,?,?,?)', [id, name, url, new Date().toISOString(), values.offer_type, values.niche, values.funnel, values.market])); }
+      try { await client.execute(sql(`INSERT INTO offers(id,name,url,created_at,${OFFER_DETAIL_COLUMNS.join(',')}) VALUES(?,?,?,?,${OFFER_DETAIL_COLUMNS.map(() => '?').join(',')})`, [id, name, url, new Date().toISOString(), ...OFFER_DETAIL_COLUMNS.map(key => values[key])])); }
       catch (error) {
         if (error.message.includes('TRACKER_OFFERS_LIMIT')) { const e = new Error(`Este workspace comporta até ${MAX_OFFERS} ofertas para garantir a coleta diária na Vercel.`); e.status = 409; throw e; }
         throw error;

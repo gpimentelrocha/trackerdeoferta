@@ -299,3 +299,19 @@ td { padding: 13px 8px; border-bottom: 1px solid #303c22; color: #c3ceb4; }
 .analysis-criteria p { font-size: 10px; margin: 8px 0 0; }
 #analysis-content td a { color: #ded49c; text-decoration: none; word-break: break-all; }
 @media(max-width:700px) { .analysis-overview { gap: 15px; padding: 14px; } .analysis-big-score { font-size: 35px; } #analysis-content .table-wrap { max-height: 240px; } #analysis-content th, #analysis-content td { font-size: 9px; padding: 10px 5px; } }
+
+/* Links das etapas do funil */
+.funnel-fields { border: 1px solid #414d31; border-radius: 8px; padding: 16px; margin: 24px 0; min-width: 0; }
+.funnel-fields legend { padding: 0 7px; font-size: 12px; color: #e4d88c; }
+.funnel-fields legend span { font-size: 10px; color: #92a07d; margin-left: 5px; }
+.funnel-fields p { margin: 0 0 16px; font-size: 11px; }
+.funnel-fields .field { margin: 16px 0 0; min-width: 0; }
+.funnel-fields input { width: 100%; min-width: 0; }
+.offer-funnel { margin: 16px 0; }
+.funnel-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.funnel-heading>span { color: #a5ad80; font-size: 8px; letter-spacing: 1.3px; }
+.funnel-heading .text-button { color: var(--accent); font-size: 10px; padding: 4px 0; }
+.offer-funnel p { font-size: 10px; color: #92a07d; margin: 8px 0; }
+.funnel-shortcuts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
+.funnel-shortcuts a { display: flex; justify-content: space-between; align-items: center; gap: 6px; border: 1px solid #414d31; background: #151c10; border-radius: 6px; padding: 10px; font-size: 10px; color: #e4d88c; text-decoration: none; }
+.funnel-shortcuts a:hover, .funnel-shortcuts a:focus-visible { border-color: var(--accent); background: #252d18; }

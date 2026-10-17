@@ -42,7 +42,8 @@ export function createStore(path) {
     create(name, url, details = {}) {
       const id = randomUUID();
       const values = offerDetails(details);
-      db.prepare('INSERT INTO offers(id,name,url,created_at,offer_type,niche,funnel,market) VALUES(?,?,?,?,?,?,?,?)').run(id, name, url, new Date().toISOString(), values.offer_type, values.niche, values.funnel, values.market);
+      db.prepare(`INSERT INTO offers(id,name,url,created_at,${OFFER_DETAIL_COLUMNS.join(',')}) VALUES(?,?,?,?,${OFFER_DETAIL_COLUMNS.map(() => '?').join(',')})`)
+        .run(id, name, url, new Date().toISOString(), ...OFFER_DETAIL_COLUMNS.map(key => values[key]));
       return get(id);
     },
     update(id, input) {

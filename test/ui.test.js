@@ -27,12 +27,15 @@ test('navegador: cadastro, contagem, histórico, busca, edição e exclusão em 
     await page.locator('#offer-form [name=niche]').fill('Renda extra');
     await page.locator('#offer-form [name=funnel]').selectOption('QUIZ + VSL');
     await page.locator('#offer-form [name=market]').selectOption('BR');
+    await page.locator('#offer-form [name=sales_url]').fill('https://example.com/vendas?a=1&b=2');
     assert.equal(await page.locator('#niche-options option[value=Prosperidade]').count(), 1);
     await page.locator('#offer-form [name=url]').fill('https://www.facebook.com/ads/library/?view_all_page_id=982937401569675&active_status=active&country=BR');
     await page.locator('#offer-form [type=submit]').click();
     await page.getByRole('heading', { name: 'Oferta <teste>', exact: true }).waitFor();
     await page.locator('.card-value strong').filter({ hasText: '142' }).waitFor();
     assert.equal(await page.locator('#metric-offers').innerText(), '1');
+    assert.equal(await page.getByRole('link', {name:'Página de vendas', exact:true}).getAttribute('href'), 'https://example.com/vendas?a=1&b=2');
+    assert.equal(await page.locator('.funnel-shortcuts a').count(), 1);
     assert.match(await page.locator('.insight-ages').innerText(), /40 dias/);
     assert.notEqual(await page.locator('.insight-score strong').innerText(), '—');
     await page.getByRole('button', {name:'Ver análise',exact:true}).click();
@@ -61,7 +64,11 @@ test('navegador: cadastro, contagem, histórico, busca, edição e exclusão em 
     await page.locator('#search').fill('inexistente');
     await page.locator('#no-results:not([hidden])').waitFor();
     await page.locator('#search').fill('');
-    await page.getByRole('button', { name: 'Editar Oferta <teste>' }).click();
+    await page.getByRole('button', { name: 'Editar links', exact:true }).click();
+    assert.equal(await page.locator('#rename-form [name=sales_url]').inputValue(), 'https://example.com/vendas?a=1&b=2');
+    await page.locator('#rename-form [name=checkout_url]').fill('https://example.com/checkout');
+    await page.locator('#rename-form [name=backredirect_url]').fill('https://example.com/voltar');
+    await page.locator('#rename-form [name=upsell_url]').fill('https://example.com/upsell');
     await page.locator('#rename-form [name=name]').fill('Oferta editada');
     assert.equal(await page.locator('#rename-form [name=offer_type]').inputValue(), 'info');
     assert.equal(await page.locator('#rename-form [name=niche]').inputValue(), 'Renda extra');
@@ -79,6 +86,13 @@ test('navegador: cadastro, contagem, histórico, busca, edição e exclusão em 
     assert.match(await page.locator('.offer-tags').innerText(), /LATAM/);
     await page.reload();
     await page.getByRole('heading', { name: 'Oferta editada', exact: true }).waitFor();
+    assert.equal(await page.locator('.funnel-shortcuts a').count(), 4);
+    for (const [label, path] of [['Checkout','checkout'],['Backredirect','voltar'],['Upsell','upsell']]) {
+      const link = page.getByRole('link', {name:label, exact:true});
+      assert.equal(await link.getAttribute('href'), 'https://example.com/'+path);
+      assert.equal(await link.getAttribute('target'), '_blank');
+      assert.match(await link.getAttribute('rel'), /noopener/);
+    }
     await page.locator('#search').fill('LATAM');
     assert.equal(await page.locator('#offer-list .offer-card').count(), 1);
     await page.locator('#search').fill('');
@@ -92,7 +106,13 @@ test('navegador: cadastro, contagem, histórico, busca, edição e exclusão em 
     assert.equal(await page.locator('#rename-form [name=funnel]').inputValue(), 'X1');
     assert.equal(await page.locator('#rename-dialog').evaluate(dialog => dialog.scrollWidth > dialog.clientWidth), false);
     await page.screenshot({ path: '/tmp/eletric-market-edit-mobile.png', fullPage: true });
-    await page.locator('#close-rename').click();
+    assert.equal(await page.locator('#rename-form [name=upsell_url]').inputValue(), 'https://example.com/upsell');
+    await page.locator('#rename-form [name=upsell_url]').fill('');
+    await page.getByRole('button', { name: 'Salvar alterações' }).click();
+    await page.locator('#rename-dialog[open]').waitFor({state:'hidden'});
+    await page.locator('.funnel-shortcuts a').nth(2).waitFor();
+    assert.equal(await page.locator('.funnel-shortcuts a').count(), 3);
+    assert.equal(store.list()[0].history.length, 2);
     await page.getByRole('button', { name: 'Excluir Oferta editada' }).click();
     await page.locator('#confirm-delete').click();
     await page.locator('#empty:not([hidden])').waitFor();
