@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#11130e"><title>Eletric Offer Track</title>
+  <meta name="description" content="Acompanhe os anúncios das suas ofertas e a evolução diária em um único lugar.">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css"><script type="module" src="/app.js"></script>
+</head>
+<body>
+  <aside class="sidebar">
+    <a href="/" class="brand" aria-label="Eletric Offer Track — início"><span class="brand-mark"><svg viewBox="0 0 24 28" aria-hidden="true"><path d="M14 1 2 16h8L8 27l14-16h-9z"/></svg></span><span class="brand-name">eletric<span>OFFER TRACK</span></span></a>
+    <div class="workspace-label">SEU CENTRO DE MONITORAMENTO</div>
+    <a href="/" class="nav-item active"><span>▦</span> Visão geral <span class="nav-count" id="nav-count">0</span></a>
+    <div class="sidebar-note"><span class="pulse"></span> Monitoramento diário<p>As ofertas mudam.<br>Seu histórico fica.</p></div>
+    <div class="profile"><span class="avatar">E</span><div>Meu workspace<small>Biblioteca de Anúncios · Meta</small></div></div>
+  </aside>
+  <div class="main-shell">
+    <header class="topbar"><span>Workspace <span class="crumb">/</span> <strong>Visão geral</strong></span><div class="topbar-actions"><span class="topbar-date" id="today"></span><button id="logout" class="text-button" hidden>Sair</button></div></header>
+    <main>
+      <section class="page-heading"><div><div class="eyebrow hero-label"><span class="live-dot"></span> CADA ANÚNCIO CONTA</div><h1>Eletric Offer Track<span>.</span></h1><p>Suas ofertas em movimento. Seu próximo passo guiado por dados.</p></div><button class="button primary" id="new-offer"><span>＋</span> Adicionar oferta</button></section>
+      <section class="metrics" aria-label="Resumo das ofertas">
+        <article class="metric"><div class="metric-label">Ofertas monitoradas <span>▦</span></div><strong id="metric-offers">0</strong><small>Seu portfólio em um só lugar</small></article>
+        <article class="metric"><div class="metric-label">Anúncios registrados <span>▤</span></div><strong id="metric-ads">—</strong><small>Soma da última contagem de cada oferta</small></article>
+        <article class="metric"><div class="metric-label">Variação entre coletas <span>↗</span></div><strong id="metric-delta">—</strong><small>Último dia registrado × anterior</small></article>
+        <article class="metric schedule-metric"><div class="metric-label">Atualização automática <span class="pulse"></span></div><strong>Todos os dias <span id="schedule-time">09:00</span></strong><small id="schedule-zone">Horário de Fortaleza · servidor ativo</small></article>
+      </section>
+      <section class="evolution-section" aria-labelledby="evolution-title">
+        <div class="evolution-heading"><div><div class="eyebrow">HISTÓRICO DIÁRIO</div><h2 id="evolution-title">A evolução da sua oferta</h2><p>Quantidade de anúncios ao longo do tempo.</p></div><label class="chart-selector">Oferta<select id="chart-offer" aria-label="Oferta do gráfico"><option value="">Nenhuma oferta cadastrada</option></select></label></div>
+        <div class="chart-controls"><div class="chart-periods" role="group" aria-label="Período do gráfico"><button data-days="7" aria-pressed="false">7 dias</button><button data-days="30" aria-pressed="true" class="selected">30 dias</button><button data-days="90" aria-pressed="false">90 dias</button><button data-days="0" aria-pressed="false">Tudo</button></div><span class="chart-legend"><i></i> Anúncios registrados</span></div>
+        <div class="daily-chart-area" id="daily-chart"></div>
+        <div class="chart-bottom"><output id="chart-detail" aria-live="polite">Adicione uma oferta para começar.</output><span id="chart-summary"></span></div>
+        <p class="chart-footnote" id="chart-footnote">Uma contagem por dia. Dias sem consulta aparecem como lacunas, nunca como zero.</p>
+      </section>
+      <section class="offers-section">
+        <div class="section-heading"><div><h2>Suas ofertas <span id="offer-count">0</span></h2><p>O próximo movimento começa com os dados.</p></div><button class="button secondary" id="refresh-all">↻ <span>Atualizar todas</span></button></div>
+        <div class="toolbar"><label class="search-box"><span>⌕</span><input id="search" type="search" placeholder="Buscar pelo nome da oferta…" aria-label="Buscar ofertas"></label><span class="source-label"><span class="source-dot"></span> Facebook Ads Library</span></div>
+        <p class="connection-error" id="connection-error" role="alert" hidden></p>
+        <div id="offer-list" class="offer-grid" aria-live="polite"></div>
+        <div class="empty" id="empty" hidden><div class="empty-art"><span class="radar-ring ring-one"></span><span class="radar-ring ring-two"></span><span class="radar-center">↗</span><span class="radar-point"></span></div><h3>Encontre o sinal da próxima oportunidade.</h3><p>Adicione o link de uma oferta na Biblioteca de Anúncios.<br>O Eletric acompanha as contagens e constrói o histórico para você.</p><button class="button primary" id="empty-add">＋ Adicionar primeira oferta</button><small>Seu histórico começa na primeira consulta bem-sucedida.</small></div>
+        <div class="no-results" id="no-results" hidden>Nenhuma oferta corresponde à busca.</div>
+      </section>
+      <div class="info-note"><span>ⓘ</span><p>A contagem segue os filtros do link cadastrado e pode ser aproximada. Consultas dependem do acesso público do Facebook. O volume de anúncios, por si só, não mede vendas ou rentabilidade.</p></div>
+      <footer><span>ELETRIC OFFER TRACK</span><span>Acompanhe o movimento. Encontre o sinal.</span></footer>
+    </main>
+  </div>
+  <dialog id="offer-dialog"><form id="offer-form"><div class="dialog-heading"><div><div class="eyebrow">NOVO MONITORAMENTO</div><h2>Adicione uma oferta</h2></div><button type="button" class="icon-button close-dialog" aria-label="Fechar">×</button></div><p>Dê um nome à oferta e cole o link da busca ou da página do anunciante.</p><label class="field">Nome da oferta<input name="name" required maxlength="100" placeholder="Ex.: Oferta de skincare" autocomplete="off"></label><label class="field">Link da Biblioteca de Anúncios<input name="url" type="url" required placeholder="https://www.facebook.com/ads/library/?…"></label><div class="form-hint">Use o link com o país, status dos anúncios e demais filtros que deseja acompanhar. Evite links de um anúncio individual.</div><p class="form-error" id="form-error" role="alert" hidden></p><div class="dialog-actions"><button type="button" class="button secondary close-dialog">Cancelar</button><button class="button primary" type="submit">Começar a acompanhar ↗</button></div></form></dialog>
+  <dialog id="history-dialog"><div class="dialog-heading"><div><div class="eyebrow">HISTÓRICO DA OFERTA</div><h2 id="history-title"></h2></div><button type="button" class="icon-button" id="close-history" aria-label="Fechar histórico">×</button></div><p class="history-description">Uma contagem por dia. Atualizações no mesmo dia substituem a contagem anterior.</p><div id="history-chart"></div><div class="table-wrap"><table><thead><tr><th>Data</th><th>Anúncios</th><th>Variação</th><th>Consulta</th></tr></thead><tbody id="history-body"></tbody></table></div></dialog>
+  <dialog id="rename-dialog"><form id="rename-form"><div class="dialog-heading"><h2>Renomear oferta</h2><button type="button" class="icon-button" id="close-rename" aria-label="Fechar">×</button></div><label class="field">Nome<input name="name" maxlength="100" required></label><p id="rename-error" class="form-error" hidden></p><div class="dialog-actions"><button class="button primary" type="submit">Salvar nome</button></div></form></dialog>
+  <dialog id="delete-dialog"><div class="dialog-heading"><h2>Excluir oferta?</h2><button type="button" class="icon-button" id="close-delete" aria-label="Fechar">×</button></div><p id="delete-description"></p><p>O histórico desta oferta também será excluído.</p><div class="dialog-actions"><button class="button secondary" id="cancel-delete">Cancelar</button><button class="button danger" id="confirm-delete">Excluir oferta</button></div></dialog>
+  <dialog id="login-dialog"><form id="login-form"><div class="eyebrow">SEU WORKSPACE</div><h2>Entre no Eletric</h2><p>Use a senha configurada para acessar suas ofertas e o histórico.</p><label class="field">Senha<input name="password" type="password" required autocomplete="current-password"></label><p id="login-error" class="form-error" role="alert" hidden></p><button type="submit" class="button primary">Entrar</button></form></dialog>
+  <div id="toast" class="toast" role="status" hidden></div>
+</body></html>
