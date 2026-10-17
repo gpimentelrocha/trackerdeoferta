@@ -9,7 +9,7 @@ import { browserExecutable } from '../src/library.js';
 
 test('navegador: cadastro, contagem, histórico, busca, edição e exclusão em desktop e celular', async () => {
   const store = createStore(':memory:');
-  const collector = createCollector(store, async () => ({ count: 142, precision: 'approximate', label: '~142 resultados' }));
+  const collector = createCollector(store, async () => ({ count: 142, precision: 'approximate', label: '~142 resultados', ad_sample: {ads:[{id:'123456',start_date:localDate(new Date(Date.now()-20*86400000))},{id:'789012',start_date:localDate(new Date(Date.now()-40*86400000))}]} }));
   const server = createApp(store, collector).listen(0, '127.0.0.1');
   await new Promise(resolve => server.once('listening', resolve));
   const browser = await chromium.launch({ executablePath: browserExecutable(), args: ['--no-sandbox'] });
@@ -31,6 +31,14 @@ test('navegador: cadastro, contagem, histórico, busca, edição e exclusão em 
     await page.getByRole('heading', { name: 'Oferta <teste>', exact: true }).waitFor();
     await page.locator('.card-value strong').filter({ hasText: '142' }).waitFor();
     assert.equal(await page.locator('#metric-offers').innerText(), '1');
+    assert.match(await page.locator('.insight-ages').innerText(), /40 dias/);
+    assert.notEqual(await page.locator('.insight-score strong').innerText(), '—');
+    await page.getByRole('button', {name:'Ver análise',exact:true}).click();
+    await page.locator('#analysis-dialog[open]').waitFor();
+    assert.match(await page.locator('#analysis-content').innerText(), /nota provisória/);
+    assert.equal(await page.locator('#analysis-content tbody tr').count(), 2);
+    assert.match(await page.locator('#analysis-content').innerText(), /não comprova vendas/);
+    await page.locator('#close-analysis').click();
     assert.equal(await page.locator('#metric-ads').innerText(), '≈ 142');
     assert.equal(await page.locator('#daily-chart .daily-point').count(), 1);
     const offer = store.list()[0];

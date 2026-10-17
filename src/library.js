@@ -1,5 +1,7 @@
 import { chromium } from 'playwright-core';
 import { existsSync } from 'node:fs';
+import { parseObservedAds } from './ad-dates.js';
+import { localDate } from './time.js';
 
 export class CollectionError extends Error {}
 let serverlessBinaryPromise;
@@ -73,6 +75,24 @@ export async function readLibraryCount(page, { timeout = 45000, status = () => 2
   throw new CollectionError('O Facebook não exibiu uma contagem reconhecível. A consulta pode exigir login ou estar indisponível. A última contagem foi preservada.');
 }
 
+export async function collectAdSample(page, { deadline, maxAds = 40 } = {}) {
+  const until = Math.min(deadline || Infinity, Date.now() + 6500);
+  const ads = new Map();
+  for (let round = 0; round < 6 && Date.now() < until; round++) {
+    try {
+      const text = await page.locator('body').innerText({ timeout: Math.max(1, Math.min(1000, until - Date.now())) });
+      for (const ad of parseObservedAds(text, localDate())) {
+        if (ads.size >= maxAds) break;
+        ads.set(ad.id, ad);
+      }
+      if (ads.size >= maxAds) break;
+      if (ads.size) await page.mouse.wheel(0, 1800);
+      if (Date.now() < until) await page.waitForTimeout(Math.min(700, until - Date.now()));
+    } catch { break; }
+  }
+  return { version: 1, scope: 'loaded_active_ads', ads: [...ads.values()] };
+}
+
 export async function collectLibraryCount(input, { timeout = 45000 } = {}) {
   const url = validateLibraryUrl(input);
   let browser;
@@ -101,7 +121,9 @@ export async function collectLibraryCount(input, { timeout = 45000 } = {}) {
     });
     const deadline = Date.now() + timeout;
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout });
-    return await readLibraryCount(page, { timeout: Math.max(1, deadline - Date.now()), status: () => mainStatus });
+    const result = await readLibraryCount(page, { timeout: Math.max(1, deadline - Date.now()), status: () => mainStatus });
+    const ad_sample = result.count > 0 ? await collectAdSample(page, { deadline }) : { version: 1, scope: 'loaded_active_ads', ads: [] };
+    return { ...result, ad_sample };
   } catch (error) {
     if (error instanceof CollectionError) throw error;
     throw new CollectionError('Não foi possível acessar a Biblioteca de Anúncios. Verifique a conexão, a permissão de rede e a disponibilidade do Facebook.');

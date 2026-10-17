@@ -20,7 +20,7 @@ export async function importLocalData(store, path) {
       const interrupted = ['queued', 'updating'].includes(offer.state);
       await tx.execute({ sql: 'INSERT INTO offers(id,name,url,created_at,last_attempt,last_error,state,scheduled_day,offer_type,niche,funnel) VALUES(?,?,?,?,?,?,?,?,?,?,?)', args: [offer.id, offer.name, offer.url, offer.created_at, offer.last_attempt, interrupted ? 'A consulta foi interrompida na migração. Atualize novamente.' : offer.last_error, interrupted ? 'error' : offer.state, offer.scheduled_day, offer.offer_type ?? null, offer.niche ?? null, offer.funnel ?? null] });
     }
-    for (const row of snapshots) await tx.execute({ sql: 'INSERT INTO snapshots(id,offer_id,day,count,precision,label,collected_at) VALUES(?,?,?,?,?,?,?)', args: [row.id, row.offer_id, row.day, row.count, row.precision, row.label, row.collected_at] });
+    for (const row of snapshots) await tx.execute({ sql: 'INSERT INTO snapshots(id,offer_id,day,count,precision,label,collected_at,ad_sample) VALUES(?,?,?,?,?,?,?,?)', args: [row.id, row.offer_id, row.day, row.count, row.precision, row.label, row.collected_at, row.ad_sample ?? null] });
     await tx.commit();
     return { offers: offers.length, snapshots: snapshots.length };
   } catch (error) { await tx.rollback(); throw error; }

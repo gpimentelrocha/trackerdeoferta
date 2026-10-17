@@ -2,6 +2,8 @@ import { createClient } from '@libsql/client/web';
 import { randomUUID } from 'node:crypto';
 import { localDate } from './time.js';
 import { OFFER_DETAIL_COLUMNS, offerDetails } from './offer-details.js';
+import { serializeAdSample } from './ad-dates.js';
+import { attachOfferAnalysis, SNAPSHOT_FIELDS } from './offer-analysis.js';
 
 export const MAX_OFFERS = 10;
 const schema = [
@@ -22,15 +24,13 @@ const schema = [
 ];
 const sql = (query, args = []) => ({ sql: query, args });
 function hydrate(offer, history) {
-  const latest = history.at(-1) || null;
-  const previous = history.at(-2) || null;
   const { lease_token, lease_until, ...publicOffer } = offer;
   // Uma função encerrada por timeout não deixa a interface presa para sempre.
   if (publicOffer.state === 'updating' && lease_until && lease_until < new Date().toISOString()) {
     publicOffer.state = 'error';
     publicOffer.last_error = 'A consulta foi interrompida. Atualize novamente.';
   }
-  return { ...publicOffer, history, latest, previous, delta: latest && previous ? latest.count - previous.count : null };
+  return attachOfferAnalysis(publicOffer, history);
 }
 
 export async function createCloudStore({ client, url = process.env.TURSO_DATABASE_URL, authToken = process.env.TURSO_AUTH_TOKEN } = {}) {
@@ -47,13 +47,15 @@ export async function createCloudStore({ client, url = process.env.TURSO_DATABAS
     const info = await migration.execute('PRAGMA table_info(offers)');
     const columns = new Set(info.rows.map(column => column.name));
     for (const column of OFFER_DETAIL_COLUMNS) if (!columns.has(column)) await migration.execute(`ALTER TABLE offers ADD COLUMN ${column} TEXT`);
+    const snapshotInfo = await migration.execute('PRAGMA table_info(snapshots)');
+    if (!snapshotInfo.rows.some(column => column.name === 'ad_sample')) await migration.execute('ALTER TABLE snapshots ADD COLUMN ad_sample TEXT');
     await migration.commit();
   } catch (error) { await migration.rollback(); throw error; }
   finally { migration.close(); }
   async function get(id) {
     const [offers, snapshots] = await client.batch([
       sql('SELECT * FROM offers WHERE id=?', [id]),
-      sql('SELECT day,count,precision,label,collected_at FROM snapshots WHERE offer_id=? ORDER BY day', [id])
+      sql(`SELECT ${SNAPSHOT_FIELDS} FROM snapshots s WHERE s.offer_id=? ORDER BY s.day`, [id])
     ], 'read');
     return offers.rows[0] ? hydrate(offers.rows[0], snapshots.rows) : null;
   }
@@ -62,7 +64,7 @@ export async function createCloudStore({ client, url = process.env.TURSO_DATABAS
     async list() {
       const [offers, snapshots] = await client.batch([
         'SELECT * FROM offers ORDER BY created_at DESC',
-        'SELECT offer_id,day,count,precision,label,collected_at FROM snapshots ORDER BY day'
+        `SELECT s.offer_id,${SNAPSHOT_FIELDS} FROM snapshots s ORDER BY s.day`
       ], 'read');
       const byOffer = new Map();
       for (const { offer_id, ...snapshot } of snapshots.rows) {
@@ -108,10 +110,10 @@ export async function createCloudStore({ client, url = process.env.TURSO_DATABAS
     },
     async success(id, token, result, now = new Date()) {
       const results = await client.batch([
-        sql(`INSERT INTO snapshots(offer_id,day,count,precision,label,collected_at)
-          SELECT id,?,?,?,?,? FROM offers WHERE id=? AND lease_token=?
-          ON CONFLICT(offer_id,day) DO UPDATE SET count=excluded.count,precision=excluded.precision,label=excluded.label,collected_at=excluded.collected_at`,
-          [localDate(now), result.count, result.precision, result.label, now.toISOString(), id, token]),
+        sql(`INSERT INTO snapshots(offer_id,day,count,precision,label,collected_at,ad_sample)
+          SELECT id,?,?,?,?,?,? FROM offers WHERE id=? AND lease_token=?
+          ON CONFLICT(offer_id,day) DO UPDATE SET count=excluded.count,precision=excluded.precision,label=excluded.label,collected_at=excluded.collected_at,ad_sample=excluded.ad_sample`,
+          [localDate(now), result.count, result.precision, result.label, now.toISOString(), serializeAdSample(result.ad_sample), id, token]),
         sql("UPDATE offers SET state='ok',last_error=NULL,lease_token=NULL,lease_until=NULL WHERE id=? AND lease_token=?", [id, token])
       ], 'write');
       return results[0].rowsAffected > 0;

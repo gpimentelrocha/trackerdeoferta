@@ -5,6 +5,8 @@ import { randomUUID } from 'node:crypto';
 
 import { localDate } from './time.js';
 import { OFFER_DETAIL_COLUMNS, offerDetails } from './offer-details.js';
+import { serializeAdSample } from './ad-dates.js';
+import { attachOfferAnalysis, SNAPSHOT_FIELDS } from './offer-analysis.js';
 export { TIME_ZONE, localDate, localHour } from './time.js';
 export function createStore(path) {
   if (path !== ':memory:') mkdirSync(dirname(path), { recursive: true });
@@ -23,16 +25,16 @@ export function createStore(path) {
   try {
     const columns = new Set(db.prepare('PRAGMA table_info(offers)').all().map(column => column.name));
     for (const column of OFFER_DETAIL_COLUMNS) if (!columns.has(column)) db.exec(`ALTER TABLE offers ADD COLUMN ${column} TEXT`);
+    const snapshotColumns = new Set(db.prepare('PRAGMA table_info(snapshots)').all().map(column => column.name));
+    if (!snapshotColumns.has('ad_sample')) db.exec('ALTER TABLE snapshots ADD COLUMN ad_sample TEXT');
     db.exec('COMMIT');
   } catch (error) { db.exec('ROLLBACK'); throw error; }
   db.prepare("UPDATE offers SET state='error', last_error='A consulta foi interrompida. Atualize novamente.' WHERE state IN ('queued', 'updating')").run();
   function get(id) {
     const offer = db.prepare('SELECT * FROM offers WHERE id=?').get(id);
     if (!offer) return null;
-    const history = db.prepare('SELECT day, count, precision, label, collected_at FROM snapshots WHERE offer_id=? ORDER BY day ASC').all(id);
-    const latest = history.at(-1) || null;
-    const previous = history.at(-2) || null;
-    return { ...offer, history, latest, previous, delta: latest && previous ? latest.count - previous.count : null };
+    const history = db.prepare(`SELECT ${SNAPSHOT_FIELDS} FROM snapshots s WHERE s.offer_id=? ORDER BY s.day ASC`).all(id);
+    return attachOfferAnalysis(offer, history);
   }
   return {
     db, get,
@@ -60,9 +62,9 @@ export function createStore(path) {
       db.exec('BEGIN');
       try {
         if (!get(id)) { db.exec('ROLLBACK'); return; }
-        db.prepare(`INSERT INTO snapshots(offer_id,day,count,precision,label,collected_at) VALUES(?,?,?,?,?,?)
-          ON CONFLICT(offer_id,day) DO UPDATE SET count=excluded.count,precision=excluded.precision,label=excluded.label,collected_at=excluded.collected_at`)
-          .run(id, localDate(now), result.count, result.precision, result.label, now.toISOString());
+        db.prepare(`INSERT INTO snapshots(offer_id,day,count,precision,label,collected_at,ad_sample) VALUES(?,?,?,?,?,?,?)
+          ON CONFLICT(offer_id,day) DO UPDATE SET count=excluded.count,precision=excluded.precision,label=excluded.label,collected_at=excluded.collected_at,ad_sample=excluded.ad_sample`)
+          .run(id, localDate(now), result.count, result.precision, result.label, now.toISOString(), serializeAdSample(result.ad_sample));
         db.prepare("UPDATE offers SET state='ok', last_error=NULL WHERE id=?").run(id);
         db.exec('COMMIT');
       } catch (error) { db.exec('ROLLBACK'); throw error; }

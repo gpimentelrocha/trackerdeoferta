@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright-core';
-import { browserExecutable, readLibraryCount } from '../src/library.js';
+import { browserExecutable, readLibraryCount, collectAdSample } from '../src/library.js';
 
 async function fixture(run, handler) {
   const browser = await chromium.launch({ executablePath: browserExecutable(), args: ['--no-sandbox'] });
@@ -48,4 +48,17 @@ test('texto de anúncio não é confundido com o total da busca', async () => {
   await fixture(async (page, status) => {
     await assert.rejects(readLibraryCount(page, { timeout: 300, status }), /contagem reconhecível/);
   }, route => route.fulfill({ status: 200, contentType: 'text/html; charset=utf-8', body: '<html><body><h1>Biblioteca de Anúncios</h1><p>Identificação da biblioteca: 12345</p><div>500 resultados</div></body></html>' }));
+});
+
+
+test('coleta datas que carregam depois da contagem e mantém o total independente da amostra', async () => {
+  await fixture(async (page,status) => {
+    const count=await readLibraryCount(page,{timeout:1000,status});
+    assert.equal(count.count,37);
+    const sample=await collectAdSample(page,{deadline:Date.now()+3000,maxAds:1});
+    assert.equal(sample.ads.length,1);
+    assert.equal(sample.ads[0].start_date,'2026-09-11');
+    assert.equal(sample.ads[0].id,'123456');
+    assert.equal(count.count,37);
+  },route=>route.fulfill({status:200,contentType:'text/html; charset=utf-8',body:'<html><body><div>~37 resultados</div><script>setTimeout(()=>{const card=document.createElement("div");card.innerText="Ativo\\nIdentificação da biblioteca: 123456\\nVeiculação iniciada em 11 de set de 2026\\nPlataformas";document.body.append(card)},300)</script></body></html>'}));
 });

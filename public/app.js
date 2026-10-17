@@ -13,6 +13,9 @@ let chartDays = 30;
 let chartOffer = '';
 let chartSignature = '';
 let chartRecords = [];
+let analysisSignature = '';
+const scoreLabel = value => value === null || value === undefined ? '—' : new Intl.NumberFormat('pt-BR', {minimumFractionDigits:1,maximumFractionDigits:1}).format(value);
+const durationLabel = value => value === null || value === undefined ? '—' : value === 0 ? 'Hoje' : `${number(value)} dias`;
 function todayInZone() { return new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()); }
 function showLogin() { authenticated = false; if (!$('#login-dialog').open) $('#login-dialog').showModal(); }
 function setDetail(record) { $('#chart-detail').textContent = record ? `${fullDate(record.day)} · ${valueLabel(record)} anúncios` : 'Sem contagem neste período.'; }
@@ -81,6 +84,22 @@ function chart(history, id) {
   const line = points.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
   return `<svg class="sparkline" viewBox="0 0 ${width} ${height}" role="img" aria-label="Histórico: ${esc(history.map(item => `${day(item.day)}: ${countLabel(item)}`).join('; '))}" preserveAspectRatio="none"><defs><linearGradient id="g-${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#e8c83f" stop-opacity=".15"/><stop offset="100%" stop-color="#e8c83f" stop-opacity="0"/></linearGradient></defs><polygon points="${pad},${height} ${line} ${width-pad},${height}" fill="url(#g-${id})"/><polyline points="${line}" stroke="#e8c83f" stroke-width="2" fill="none" vector-effect="non-scaling-stroke"/>${points.map(([x, y], index) => `<circle cx="${x}" cy="${y}" r="2.5" fill="#e8c83f"><title>${day(history[index].day)}: ${countLabel(history[index])}</title></circle>`).join('')}</svg>`;
 }
+function offerInsights(offer) {
+  const analysis = offer.analysis;
+  return `<section class="offer-insights" aria-label="Duração e nota da oferta"><div class="insight-heading"><div><span class="insight-eyebrow">NOTA PARA MODELAGEM</span><div class="insight-verdict">${esc(analysis?.label || 'Sem avaliação')}${analysis?.score !== null && analysis?.score !== undefined && analysis?.provisional ? ' · provisória' : ''}</div></div><div class="insight-score"><strong>${scoreLabel(analysis?.score)}</strong><span>/10</span></div></div><div class="insight-ages"><div><span>Mais antigo observado</span><strong>${durationLabel(analysis?.oldest_days)}</strong></div><div><span>Mediana da amostra</span><strong>${durationLabel(analysis?.median_days)}</strong></div></div><div class="insight-bottom"><span>${analysis?.sampled_ads ? `${number(analysis.sampled_ads)} ativos com data · última coleta` : 'Atualize para coletar datas'}</span><button class="text-button" data-action="analysis">Ver análise</button></div></section>`;
+}
+function renderAnalysis() {
+  const offer = offers.find(item => item.id === selection);
+  if (!offer) { $('#analysis-dialog').close(); return; }
+  const analysis = offer.analysis;
+  const signature = JSON.stringify([offer.id, offer.name, analysis]);
+  if (analysisSignature === signature) return;
+  analysisSignature = signature;
+  $('#analysis-title').textContent = offer.name;
+  if (!analysis) { $('#analysis-content').innerHTML = '<p>Atualize a oferta para coletar datas e calcular uma avaliação.</p>'; return; }
+  const criteria = analysis.criteria.map(item => `<li><div><strong>${esc(item.label)}</strong><span>${scoreLabel(item.points)} / ${scoreLabel(item.maximum)}</span></div><p>${esc(item.detail)}</p></li>`).join('');
+  $('#analysis-content').innerHTML = `<div class="analysis-overview"><div class="analysis-big-score">${scoreLabel(analysis.score)}<small>/10</small></div><div><strong>${esc(analysis.label)}${analysis.score !== null && analysis.provisional ? ' · nota provisória' : ''}</strong><p>${esc(analysis.reason)}</p></div></div><p class="analysis-note">${esc(analysis.disclaimer)}</p>${analysis.observed_at ? `<p class="analysis-timestamp">Dados da consulta de ${dateTime(analysis.observed_at)}.</p>` : ''}${criteria ? `<h3>Como a nota foi calculada</h3><ul class="analysis-criteria">${criteria}</ul><p class="analysis-note">Nota = soma dos pontos dividida pela soma dos pesos disponíveis, multiplicada por 10. Sem histórico de 7–14 dias, a evolução é excluída e a nota fica provisória. Menos de 5 anúncios observados também gera uma nota provisória.</p>` : ''}${analysis.approximate_counts ? '<p class="analysis-note">A Meta publicou contagens aproximadas; os sinais de volume e evolução também são estimativas.</p>' : ''}<h3>Anúncios ativos observados (${analysis.sampled_ads})</h3><p class="analysis-note">${esc(analysis.sample_note)}</p>${analysis.ads.length ? `<div class="table-wrap"><table><thead><tr><th>Anúncio</th><th>Início informado</th><th>Dias até a coleta</th></tr></thead><tbody>${analysis.ads.map(ad => `<tr><td><a href="https://www.facebook.com/ads/library/?id=${ad.id}" target="_blank" rel="noopener noreferrer">${esc(ad.id)} ↗</a></td><td>${day(ad.start_date)}</td><td>${durationLabel(ad.days_running)}</td></tr>`).join('')}</tbody></table></div>` : '<p class="analysis-note">As datas aparecerão após uma consulta que carregue anúncios ativos com início informado.</p>'}`;
+}
 function card(offer) {
   const busy = ['queued', 'updating'].includes(offer.state);
   const statusText = { ok: 'Atualizada', pending: 'Aguardando', queued: 'Na fila', updating: 'Consultando…', error: 'Verificar acesso' }[offer.state];
@@ -89,7 +108,7 @@ function card(offer) {
   const delta = offer.delta === null ? '' : `<span class="delta ${offer.delta > 0 ? 'up' : offer.delta < 0 ? 'down' : ''}">${signed(offer.delta)} entre dias</span>`;
   const tags = [offer.offer_type ? (offer.offer_type === 'info' ? 'Info' : 'Drop') : null, offer.niche, offer.funnel].filter(Boolean);
   const classification = tags.length ? `<div class="offer-tags" aria-label="Classificação da oferta">${tags.map(tag => `<span>${esc(tag)}</span>`).join('')}</div>` : '<div class="offer-tags unclassified">Sem classificação</div>';
-  return `<article class="offer-card" data-id="${offer.id}"><div class="card-heading"><div class="offer-avatar">${esc(offer.name[0].toLocaleUpperCase('pt-BR'))}</div><div class="card-title"><h3 title="${esc(offer.name)}">${esc(offer.name)}</h3><a href="${esc(offer.url)}" target="_blank" rel="noopener noreferrer">Abrir na biblioteca ↗</a></div><span class="status ${offer.state}">${statusText}</span></div>${classification}<div class="card-value"><strong>${countLabel(offer.latest)}</strong><small>anúncios</small>${delta}</div><div class="card-context">${esc(statusFilter)} · ${esc(filters.get('country') || 'País do link')}${offer.latest ? ` · ${dateTime(offer.latest.collected_at)}` : ' · Ainda sem contagem'}</div>${chart(offer.history, offer.id)}${offer.last_error ? `<div class="card-error">${esc(offer.last_error)}${offer.last_attempt ? `<br>Última tentativa: ${dateTime(offer.last_attempt)}` : ''}</div>` : ''}<div class="card-footer"><button class="text-button" data-action="history">↗ Ver histórico</button><div><button class="text-button" data-action="refresh" ${busy ? 'disabled' : ''}>↻ ${busy ? 'Consultando' : 'Atualizar'}</button><button class="text-button" data-action="rename" aria-label="Editar ${esc(offer.name)}">Editar</button><button class="text-button delete" data-action="delete" aria-label="Excluir ${esc(offer.name)}">Excluir</button></div></div></article>`;
+  return `<article class="offer-card" data-id="${offer.id}"><div class="card-heading"><div class="offer-avatar">${esc(offer.name[0].toLocaleUpperCase('pt-BR'))}</div><div class="card-title"><h3 title="${esc(offer.name)}">${esc(offer.name)}</h3><a href="${esc(offer.url)}" target="_blank" rel="noopener noreferrer">Abrir na biblioteca ↗</a></div><span class="status ${offer.state}">${statusText}</span></div>${classification}<div class="card-value"><strong>${countLabel(offer.latest)}</strong><small>anúncios</small>${delta}</div><div class="card-context">${esc(statusFilter)} · ${esc(filters.get('country') || 'País do link')}${offer.latest ? ` · ${dateTime(offer.latest.collected_at)}` : ' · Ainda sem contagem'}</div>${chart(offer.history, offer.id)}${offerInsights(offer)}${offer.last_error ? `<div class="card-error">${esc(offer.last_error)}${offer.last_attempt ? `<br>Última tentativa: ${dateTime(offer.last_attempt)}` : ''}</div>` : ''}<div class="card-footer"><button class="text-button" data-action="history">↗ Ver histórico</button><div><button class="text-button" data-action="refresh" ${busy ? 'disabled' : ''}>↻ ${busy ? 'Consultando' : 'Atualizar'}</button><button class="text-button" data-action="rename" aria-label="Editar ${esc(offer.name)}">Editar</button><button class="text-button delete" data-action="delete" aria-label="Excluir ${esc(offer.name)}">Excluir</button></div></div></article>`;
 }
 function render() {
   const search = $('#search').value.toLocaleLowerCase('pt-BR').trim();
@@ -110,6 +129,7 @@ function render() {
   $('#refresh-all').disabled = !offers.length || offers.every(offer => ['queued', 'updating'].includes(offer.state));
   renderEvolution();
   if ($('#history-dialog').open && selection) renderHistory();
+  if ($('#analysis-dialog').open && selection) renderAnalysis();
 }
 async function load() {
   if (loading || !authenticated) return;
@@ -173,6 +193,7 @@ $('#offer-list').addEventListener('click', async event => {
   const offer = offers.find(item => item.id === button.closest('[data-id]').dataset.id);
   if (!offer) return;
   selection = offer.id;
+  if (button.dataset.action === 'analysis') { renderAnalysis(); $('#analysis-dialog').showModal(); }
   if (button.dataset.action === 'history') { renderHistory(); $('#history-dialog').showModal(); }
   if (button.dataset.action === 'refresh') {
     button.disabled = true;
@@ -190,6 +211,7 @@ $('#offer-list').addEventListener('click', async event => {
     $('#delete-dialog').showModal();
   }
 });
+$('#close-analysis').addEventListener('click', () => $('#analysis-dialog').close());
 $('#close-history').addEventListener('click', () => $('#history-dialog').close());
 $('#close-rename').addEventListener('click', () => $('#rename-dialog').close());
 $('#rename-form').addEventListener('submit', async event => {

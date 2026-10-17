@@ -1,6 +1,6 @@
 # ⚡ Eletric Offer Track
 
-Acompanhe a quantidade de anúncios das suas ofertas, com atualização diária e gráfico de evolução. Classifique por **Info ou Drop**, **nicho** e **TSL, VSL, QUIZ ou QUIZ + VSL**. Use **Editar** para completar ou alterar a classificação.
+Acompanhe a quantidade de anúncios das suas ofertas, com atualização diária e gráfico de evolução. Classifique por **Info ou Drop**, **nicho** e **TSL, VSL, QUIZ ou QUIZ + VSL**. Use **Editar** para completar ou alterar a classificação. Cada oferta também mostra os dias desde o início dos anúncios observados e uma **nota de triagem de 0 a 10**, com critérios em **Ver análise**.
 
 ## Colocar na Vercel
 
@@ -24,3 +24,7 @@ O app abre diretamente, sem login ou senha. Só essas duas variáveis do Turso s
 ## Rodar no computador
 
 Node.js 24 e Chromium instalados: `npm ci`, depois `npm start`. Para verificar: `npm test` e `npm run build`.
+
+**Nota de modelagem:** considera idade dos anúncios, proporção com 14+ dias, volume e evolução semanal. Os pesos e pontos aparecem em **Ver análise**. A amostra tem até 40 anúncios ativos carregados; faltando histórico semanal ou com menos de 5 anúncios, a nota é provisória. Dados ausentes ou desatualizados ficam sem avaliação.
+
+As idades usam o início informado pela Meta e a data da coleta; pausas não são conhecidas. A nota prioriza pesquisa e não comprova vendas, lucro ou retorno. Após atualizar a versão, clique em **Atualizar** para coletar as datas das ofertas existentes. A migração preserva o histórico.
