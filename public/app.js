@@ -106,13 +106,13 @@ function card(offer) {
   const filters = new URL(offer.url).searchParams;
   const statusFilter = { active: 'Ativos', inactive: 'Inativos', all: 'Todos os status' }[filters.get('active_status')] || 'Filtros do link';
   const delta = offer.delta === null ? '' : `<span class="delta ${offer.delta > 0 ? 'up' : offer.delta < 0 ? 'down' : ''}">${signed(offer.delta)} entre dias</span>`;
-  const tags = [offer.offer_type ? (offer.offer_type === 'info' ? 'Info' : 'Drop') : null, offer.niche, offer.funnel].filter(Boolean);
+  const tags = [offer.offer_type ? (offer.offer_type === 'info' ? 'Info' : 'Drop') : null, offer.niche, offer.funnel, offer.market].filter(Boolean);
   const classification = tags.length ? `<div class="offer-tags" aria-label="Classificação da oferta">${tags.map(tag => `<span>${esc(tag)}</span>`).join('')}</div>` : '<div class="offer-tags unclassified">Sem classificação</div>';
   return `<article class="offer-card" data-id="${offer.id}"><div class="card-heading"><div class="offer-avatar">${esc(offer.name[0].toLocaleUpperCase('pt-BR'))}</div><div class="card-title"><h3 title="${esc(offer.name)}">${esc(offer.name)}</h3><a href="${esc(offer.url)}" target="_blank" rel="noopener noreferrer">Abrir na biblioteca ↗</a></div><span class="status ${offer.state}">${statusText}</span></div>${classification}<div class="card-value"><strong>${countLabel(offer.latest)}</strong><small>anúncios</small>${delta}</div><div class="card-context">${esc(statusFilter)} · ${esc(filters.get('country') || 'País do link')}${offer.latest ? ` · ${dateTime(offer.latest.collected_at)}` : ' · Ainda sem contagem'}</div>${chart(offer.history, offer.id)}${offerInsights(offer)}${offer.last_error ? `<div class="card-error">${esc(offer.last_error)}${offer.last_attempt ? `<br>Última tentativa: ${dateTime(offer.last_attempt)}` : ''}</div>` : ''}<div class="card-footer"><button class="text-button" data-action="history">↗ Ver histórico</button><div><button class="text-button" data-action="refresh" ${busy ? 'disabled' : ''}>↻ ${busy ? 'Consultando' : 'Atualizar'}</button><button class="text-button" data-action="rename" aria-label="Editar ${esc(offer.name)}">Editar</button><button class="text-button delete" data-action="delete" aria-label="Excluir ${esc(offer.name)}">Excluir</button></div></div></article>`;
 }
 function render() {
   const search = $('#search').value.toLocaleLowerCase('pt-BR').trim();
-  const filtered = offers.filter(offer => [offer.name, offer.offer_type, offer.niche, offer.funnel].some(value => value?.toLocaleLowerCase('pt-BR').includes(search)));
+  const filtered = offers.filter(offer => [offer.name, offer.offer_type, offer.niche, offer.funnel, offer.market].some(value => value?.toLocaleLowerCase('pt-BR').includes(search)));
   $('#metric-offers').textContent = number(offers.length);
   $('#nav-count').textContent = offers.length;
   $('#offer-count').textContent = offers.length;
@@ -202,7 +202,7 @@ $('#offer-list').addEventListener('click', async event => {
   }
   if (button.dataset.action === 'rename') {
     $('#rename-form').elements.name.value = offer.name;
-    for (const field of ['offer_type', 'niche', 'funnel']) $('#rename-form').elements[field].value = offer[field] || '';
+    for (const field of ['offer_type', 'niche', 'funnel', 'market']) $('#rename-form').elements[field].value = offer[field] || '';
     $('#rename-error').hidden = true;
     $('#rename-dialog').showModal();
   }

@@ -36,13 +36,15 @@ test('SQLite existente recebe novos campos sem perder ofertas ou histórico; rea
     assert.equal(old.offer_type, null);
     assert.equal(old.niche, null);
     assert.equal(old.funnel, null);
-    store.update('legacy', { offer_type: 'info', niche: 'Emagrecimento', funnel: 'QUIZ + VSL' });
+    assert.equal(old.market, null);
+    store.update('legacy', { offer_type: 'info', niche: 'Emagrecimento', funnel: 'X1', market: 'BR' });
     store.close();
     store = createStore(path);
     const updated = store.get('legacy');
     assert.equal(updated.offer_type, 'info');
     assert.equal(updated.niche, 'Emagrecimento');
-    assert.equal(updated.funnel, 'QUIZ + VSL');
+    assert.equal(updated.funnel, 'X1');
+    assert.equal(updated.market, 'BR');
     assert.equal(updated.latest.count, 123);
     assert.equal(updated.history.length, 1);
   } finally { store?.close(); rmSync(directory, {recursive:true,force:true}); }
@@ -52,25 +54,35 @@ test('libSQL migra banco antigo, persiste classificação e mantém histórico e
   const directory = mkdtempSync(join(tmpdir(), 'cloud-offer-migration-'));
   const databaseUrl = 'file:' + join(directory, 'cloud.sqlite');
   let client = createClient({ url: databaseUrl });
-  await client.batch([...legacySchema,legacyOffer,legacySnapshot], 'write');
+  await client.batch([...legacySchema,legacyOffer,legacySnapshot,
+    'ALTER TABLE offers ADD COLUMN offer_type TEXT',
+    'ALTER TABLE offers ADD COLUMN niche TEXT',
+    'ALTER TABLE offers ADD COLUMN funnel TEXT',
+    "UPDATE offers SET offer_type='info', niche='Renda extra', funnel='VSL'"
+  ], 'write');
   let store;
   try {
     store = await createCloudStore({ client });
-    assert.equal((await store.get('legacy')).funnel, null);
-    await store.update('legacy', {offer_type:'drop', niche:'Pets', funnel:'TSL'});
+    const migrated = await store.get('legacy');
+    assert.equal(migrated.funnel, 'VSL');
+    assert.equal(migrated.niche, 'Renda extra');
+    assert.equal(migrated.offer_type, 'info');
+    assert.equal(migrated.market, null);
+    await store.update('legacy', {offer_type:'drop', niche:'Prosperidade', funnel:'X1', market:'LATAM'});
     store.close();
     client = createClient({url:databaseUrl});
     store = await createCloudStore({client});
     const old = (await store.list())[0];
     assert.equal(old.offer_type, 'drop');
-    assert.equal(old.niche, 'Pets');
-    assert.equal(old.funnel, 'TSL');
+    assert.equal(old.niche, 'Prosperidade');
+    assert.equal(old.funnel, 'X1');
+    assert.equal(old.market, 'LATAM');
     assert.equal(old.latest.count, 123);
     assert.equal(old.history.length, 1);
   } finally { store?.close(); rmSync(directory, {recursive:true,force:true}); }
 });
 
-test('API de produção cadastra e edita tipo, nicho personalizado e todos os formatos sem refazer histórico', async () => {
+test('API de produção cadastra e edita tipo, nicho personalizado, mercados e todos os formatos sem refazer histórico', async () => {
   let store, collected = 0;
   const handler = createProductionHandler({
     getEnvironment:()=>({TURSO_DATABASE_URL:'libsql://test.turso.io',TURSO_AUTH_TOKEN:'test-only'}),
@@ -82,14 +94,16 @@ test('API de produção cadastra e edita tipo, nicho personalizado e todos os fo
   const base = `http://127.0.0.1:${server.address().port}`;
   const request = (path, method, body)=>fetch(base+path,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   try {
-    const response = await request('/api/offers','POST',{name:'Oferta classificada',url,offer_type:'info',niche:' Renda extra ',funnel:'QUIZ + VSL'});
+    const response = await request('/api/offers','POST',{name:'Oferta classificada',url,offer_type:'info',niche:' Renda extra ',funnel:'QUIZ + VSL',market:' br '});
     assert.equal(response.status,201);
     const created = await response.json();
     assert.equal(created.offer_type,'info');
     assert.equal(created.niche,'Renda extra');
     assert.equal(created.funnel,'QUIZ + VSL');
+    assert.equal(created.market,'BR');
+    assert.equal(created.url,url);
     assert.equal(created.latest.count,55);
-    for(const funnel of ['TSL','VSL','QUIZ','QUIZ + VSL']) {
+    for(const funnel of ['TSL','VSL','QUIZ','QUIZ + VSL','X1']) {
       const changed = await request('/api/offers/'+created.id,'PATCH',{offer_type:'drop',niche:'Um nicho personalizado & específico',funnel});
       assert.equal(changed.status,200);
       const data = await changed.json();
@@ -99,15 +113,26 @@ test('API de produção cadastra e edita tipo, nicho personalizado e todos os fo
       assert.equal(data.history.length,1);
       assert.equal(data.latest.count,55);
     }
+    for (const market of ['BR', 'LATAM', 'EUA']) {
+      const changed = await request('/api/offers/'+created.id,'PATCH',{market});
+      assert.equal(changed.status,200);
+      const data = await changed.json();
+      assert.equal(data.market,market);
+      assert.equal(data.url,url);
+      assert.equal(data.history.length,1);
+      assert.equal(data.latest.count,55);
+    }
     assert.equal(collected,1);
-    for(const bad of [{offer_type:'affiliate'},{funnel:'INVALID'},{niche:'x'.repeat(81)},{offer_type:{value:'info'}}]) {
+    for(const bad of [{offer_type:'affiliate'},{funnel:'INVALID'},{market:'DE'},{market:['BR']},{niche:'x'.repeat(81)},{offer_type:{value:'info'}}]) {
       assert.equal((await request('/api/offers','POST',{name:'Inválida',url,...bad})).status,400);
       assert.equal((await request('/api/offers/'+created.id,'PATCH',bad)).status,400);
     }
     assert.equal((await store.list()).length,1);
     const renamed = await request('/api/offers/'+created.id,'PATCH',{name:'Mesmo histórico'});
     assert.equal(renamed.status,200);
-    assert.equal((await renamed.json()).funnel,'QUIZ + VSL');
+    const preserved = await renamed.json();
+    assert.equal(preserved.funnel,'X1');
+    assert.equal(preserved.market,'EUA');
     assert.equal(collected,1);
   } finally { await new Promise(resolve=>server.close(resolve));store?.close(); }
 });

@@ -1,6 +1,7 @@
-export const OFFER_DETAIL_COLUMNS = ['offer_type', 'niche', 'funnel'];
+export const OFFER_DETAIL_COLUMNS = ['offer_type', 'niche', 'funnel', 'market'];
+const markets = ['BR', 'LATAM', 'EUA'];
 const types = ['info', 'drop'];
-const funnels = ['TSL', 'VSL', 'QUIZ', 'QUIZ + VSL'];
+const funnels = ['TSL', 'VSL', 'QUIZ', 'QUIZ + VSL', 'X1'];
 function invalid(message) { const error = new Error(message); error.status = 400; throw error; }
 
 // Valores ausentes ficam vazios para manter compatibilidade com ofertas antigas.
@@ -10,7 +11,7 @@ export function offerDetails(input = {}, { partial = false } = {}) {
     if (partial && !Object.hasOwn(input, key)) continue;
     const value = input[key];
     if (value === undefined || value === null || value === '') { result[key] = null; continue; }
-    if (typeof value !== 'string') invalid('Tipo, nicho e formato devem ser textos.');
+    if (typeof value !== 'string') invalid('Tipo, nicho, formato e país/mercado devem ser textos.');
     const text = value.trim();
     if (!text) { result[key] = null; continue; }
     if (key === 'offer_type') {
@@ -19,8 +20,12 @@ export function offerDetails(input = {}, { partial = false } = {}) {
       result[key] = type;
     } else if (key === 'funnel') {
       const funnel = text.toUpperCase().replace(/\s*\+\s*/g, ' + ');
-      if (!funnels.includes(funnel)) invalid('Escolha TSL, VSL, QUIZ ou QUIZ + VSL para o formato.');
+      if (!funnels.includes(funnel)) invalid('Escolha TSL, VSL, QUIZ, QUIZ + VSL ou X1 para o formato.');
       result[key] = funnel;
+    } else if (key === 'market') {
+      const market = text.toUpperCase();
+      if (!markets.includes(market)) invalid('Escolha BR, LATAM ou EUA para o país/mercado.');
+      result[key] = market;
     } else {
       if (text.length > 80) invalid('O nicho deve ter até 80 caracteres.');
       result[key] = text;

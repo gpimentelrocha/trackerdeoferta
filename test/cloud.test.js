@@ -76,7 +76,7 @@ test('importação preserva histórico original e recusa sobrescrever Turso com 
   const directory = mkdtempSync(join(tmpdir(), 'tracker-import-'));
   const path = join(directory, 'source.sqlite');
   const source = createStore(path);
-  const offer = source.create('Original', url, {offer_type:'info',niche:'Renda extra',funnel:'QUIZ + VSL'});
+  const offer = source.create('Original', url, {offer_type:'info',niche:'Prosperidade',funnel:'X1',market:'EUA'});
   source.success(offer.id, result(290));
   source.close();
   const destination = await database();
@@ -84,8 +84,9 @@ test('importação preserva histórico original e recusa sobrescrever Turso com 
     assert.deepEqual(await importLocalData(destination, path), { offers: 1, snapshots: 1 });
     assert.equal((await destination.get(offer.id)).latest.count, 290);
     assert.equal((await destination.get(offer.id)).offer_type, 'info');
-    assert.equal((await destination.get(offer.id)).niche, 'Renda extra');
-    assert.equal((await destination.get(offer.id)).funnel, 'QUIZ + VSL');
+    assert.equal((await destination.get(offer.id)).niche, 'Prosperidade');
+    assert.equal((await destination.get(offer.id)).funnel, 'X1');
+    assert.equal((await destination.get(offer.id)).market, 'EUA');
     await assert.rejects(importLocalData(destination, path), /deve estar vazio/);
     assert.equal((await destination.list()).length, 1);
     const verify = createStore(path);
