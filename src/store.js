@@ -4,6 +4,7 @@ import { dirname } from 'node:path';
 import { randomUUID } from 'node:crypto';
 
 import { localDate } from './time.js';
+import { OFFER_DETAIL_COLUMNS, offerDetails } from './offer-details.js';
 export { TIME_ZONE, localDate, localHour } from './time.js';
 export function createStore(path) {
   if (path !== ':memory:') mkdirSync(dirname(path), { recursive: true });
@@ -18,6 +19,12 @@ export function createStore(path) {
       day TEXT NOT NULL, count INTEGER NOT NULL CHECK(count >= 0), precision TEXT NOT NULL,
       label TEXT NOT NULL, collected_at TEXT NOT NULL, UNIQUE(offer_id, day)
     );`);
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    const columns = new Set(db.prepare('PRAGMA table_info(offers)').all().map(column => column.name));
+    for (const column of OFFER_DETAIL_COLUMNS) if (!columns.has(column)) db.exec(`ALTER TABLE offers ADD COLUMN ${column} TEXT`);
+    db.exec('COMMIT');
+  } catch (error) { db.exec('ROLLBACK'); throw error; }
   db.prepare("UPDATE offers SET state='error', last_error='A consulta foi interrompida. Atualize novamente.' WHERE state IN ('queued', 'updating')").run();
   function get(id) {
     const offer = db.prepare('SELECT * FROM offers WHERE id=?').get(id);
@@ -30,9 +37,17 @@ export function createStore(path) {
   return {
     db, get,
     list: () => db.prepare('SELECT id FROM offers ORDER BY created_at DESC').all().map(row => get(row.id)),
-    create(name, url) {
+    create(name, url, details = {}) {
       const id = randomUUID();
-      db.prepare('INSERT INTO offers(id,name,url,created_at) VALUES(?,?,?,?)').run(id, name, url, new Date().toISOString());
+      const values = offerDetails(details);
+      db.prepare('INSERT INTO offers(id,name,url,created_at,offer_type,niche,funnel) VALUES(?,?,?,?,?,?,?)').run(id, name, url, new Date().toISOString(), values.offer_type, values.niche, values.funnel);
+      return get(id);
+    },
+    update(id, input) {
+      const values = offerDetails(input, { partial: true });
+      if (Object.hasOwn(input, 'name')) values.name = input.name;
+      const entries = Object.entries(values);
+      if (entries.length) db.prepare(`UPDATE offers SET ${entries.map(([key]) => key + '=?').join(',')} WHERE id=?`).run(...entries.map(([, value]) => value), id);
       return get(id);
     },
     rename(id, name) { db.prepare('UPDATE offers SET name=? WHERE id=?').run(name, id); return get(id); },

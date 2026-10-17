@@ -1,6 +1,6 @@
 # ⚡ Eletric Offer Track
 
-Acompanhe a quantidade de anúncios das suas ofertas, com atualização diária e gráfico de evolução.
+Acompanhe a quantidade de anúncios das suas ofertas, com atualização diária e gráfico de evolução. Classifique por **Info ou Drop**, **nicho** e **TSL, VSL, QUIZ ou QUIZ + VSL**. Use **Editar** para completar ou alterar a classificação.
 
 ## Colocar na Vercel
 

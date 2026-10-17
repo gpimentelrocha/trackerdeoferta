@@ -256,3 +256,15 @@ td { padding: 13px 8px; border-bottom: 1px solid #303c22; color: #c3ceb4; }
   .chart-footnote { margin: 10px 17px 17px; font-size: 8px; }
   .evolution-section { margin-bottom: 20px; }
 }
+
+/* Classificação de ofertas */
+.classification-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 22px 0; }
+.classification-fields .field { margin: 0; }
+.classification-fields .niche-field { grid-column: 1 / -1; }
+.field select { width: 100%; min-width: 0; padding: 12px; border: 1px solid #414d31; border-radius: 6px; font-size: 12px; color: #eff2e6; background: #151b0f; color-scheme: dark; outline: 0; }
+.field select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px #f2d34f12; }
+.offer-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 16px; }
+.offer-tags span { font-size: 9px; line-height: 1.5; border: 1px solid #5b572c; color: #e4d88c; background: #f2d34f0b; padding: 3px 7px; border-radius: 5px; overflow-wrap: anywhere; max-width: 100%; }
+.offer-tags.unclassified { color: #8d9a7b; font-size: 9px; }
+#offer-dialog, #rename-dialog { max-height: calc(100dvh - 32px); overflow-y: auto; }
+@media(max-width: 380px) { .classification-fields { grid-template-columns: 1fr; gap: 14px; } }

@@ -1,6 +1,7 @@
 import { createClient } from '@libsql/client/web';
 import { randomUUID } from 'node:crypto';
 import { localDate } from './time.js';
+import { OFFER_DETAIL_COLUMNS, offerDetails } from './offer-details.js';
 
 export const MAX_OFFERS = 10;
 const schema = [
@@ -39,6 +40,16 @@ export async function createCloudStore({ client, url = process.env.TURSO_DATABAS
     client = createClient({ url, authToken });
   }
   await client.batch(schema, 'write');
+  // Leitura do schema e ALTER sob o mesmo bloqueio: cold starts concorrentes
+  // não tentam criar a mesma coluna. Nenhum registro existente é reescrito.
+  const migration = await client.transaction('write');
+  try {
+    const info = await migration.execute('PRAGMA table_info(offers)');
+    const columns = new Set(info.rows.map(column => column.name));
+    for (const column of OFFER_DETAIL_COLUMNS) if (!columns.has(column)) await migration.execute(`ALTER TABLE offers ADD COLUMN ${column} TEXT`);
+    await migration.commit();
+  } catch (error) { await migration.rollback(); throw error; }
+  finally { migration.close(); }
   async function get(id) {
     const [offers, snapshots] = await client.batch([
       sql('SELECT * FROM offers WHERE id=?', [id]),
@@ -60,13 +71,21 @@ export async function createCloudStore({ client, url = process.env.TURSO_DATABAS
       }
       return offers.rows.map(offer => hydrate(offer, byOffer.get(offer.id) || []));
     },
-    async create(name, url) {
+    async create(name, url, details = {}) {
       const id = randomUUID();
-      try { await client.execute(sql('INSERT INTO offers(id,name,url,created_at) VALUES(?,?,?,?)', [id, name, url, new Date().toISOString()])); }
+      const values = offerDetails(details);
+      try { await client.execute(sql('INSERT INTO offers(id,name,url,created_at,offer_type,niche,funnel) VALUES(?,?,?,?,?,?,?)', [id, name, url, new Date().toISOString(), values.offer_type, values.niche, values.funnel])); }
       catch (error) {
         if (error.message.includes('TRACKER_OFFERS_LIMIT')) { const e = new Error(`Este workspace comporta até ${MAX_OFFERS} ofertas para garantir a coleta diária na Vercel.`); e.status = 409; throw e; }
         throw error;
       }
+      return get(id);
+    },
+    async update(id, input) {
+      const values = offerDetails(input, { partial: true });
+      if (Object.hasOwn(input, 'name')) values.name = input.name;
+      const entries = Object.entries(values);
+      if (entries.length) await client.execute(sql(`UPDATE offers SET ${entries.map(([key]) => key + '=?').join(',')} WHERE id=?`, [...entries.map(([, value]) => value), id]));
       return get(id);
     },
     async rename(id, name) { await client.execute(sql('UPDATE offers SET name=? WHERE id=?', [name, id])); return get(id); },

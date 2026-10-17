@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { validateLibraryUrl } from './library.js';
 import { TIME_ZONE } from './time.js';
 import { createPersonalAccess } from './auth.js';
+import { offerDetails } from './offer-details.js';
 
 export function createApp(store, collector, { auth = createPersonalAccess(), staticFiles = true, platform = 'local' } = {}) {
   const app = express();
@@ -33,10 +34,10 @@ export function createApp(store, collector, { auth = createPersonalAccess(), sta
     return name;
   }
   app.post('/api/offers', async (req, res) => {
-    let name, url;
-    try { name = nameFrom(req); url = validateLibraryUrl(req.body?.url); }
+    let name, url, details;
+    try { name = nameFrom(req); url = validateLibraryUrl(req.body?.url); details = offerDetails(req.body); }
     catch (error) { return res.status(400).json({ error: error.message }); }
-    const offer = await store.create(name, url);
+    const offer = await store.create(name, url, details);
     await collector.initial(offer.id);
     res.status(201).json(await store.get(offer.id));
   });
@@ -58,7 +59,13 @@ export function createApp(store, collector, { auth = createPersonalAccess(), sta
   });
   app.patch('/api/offers/:id', async (req, res) => {
     if (!await store.get(req.params.id)) return res.status(404).json({ error: 'Oferta não encontrada.' });
-    res.json(await store.rename(req.params.id, nameFrom(req)));
+    let updates;
+    try {
+      updates = offerDetails(req.body || {}, { partial: true });
+      if (Object.hasOwn(req.body || {}, 'name')) updates.name = nameFrom(req);
+      if (!Object.keys(updates).length) return res.status(400).json({ error: 'Informe o nome, tipo, nicho ou formato que deseja editar.' });
+    } catch (error) { return res.status(400).json({ error: error.message }); }
+    res.json(await store.update(req.params.id, updates));
   });
   app.delete('/api/offers/:id', async (req, res) => {
     if (!await store.remove(req.params.id)) return res.status(404).json({ error: 'Oferta não encontrada.' });
