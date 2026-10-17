@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright-core';
-import { browserExecutable, readLibraryCount, collectAdSample } from '../src/library.js';
+import { browserExecutable, readLibraryCount, collectAdSample, navigateLibrary } from '../src/library.js';
 
 async function fixture(run, handler) {
   const browser = await chromium.launch({ executablePath: browserExecutable(), args: ['--no-sandbox'] });
@@ -61,4 +61,23 @@ test('coleta datas que carregam depois da contagem e mantém o total independent
     assert.equal(sample.ads[0].id,'123456');
     assert.equal(count.count,37);
   },route=>route.fulfill({status:200,contentType:'text/html; charset=utf-8',body:'<html><body><div>~37 resultados</div><script>setTimeout(()=>{const card=document.createElement("div");card.innerText="Ativo\\nIdentificação da biblioteca: 123456\\nVeiculação iniciada em 11 de set de 2026\\nPlataformas";document.body.append(card)},300)</script></body></html>'}));
+});
+
+
+test('lê a contagem visível mesmo quando um script mantém DOMContentLoaded pendente', async () => {
+  const browser = await chromium.launch({ executablePath: browserExecutable(), args: ['--no-sandbox'] });
+  let release;
+  const scriptReady = new Promise(resolve => { release = resolve; });
+  try {
+    const page = await browser.newPage();
+    let domReady = false;
+    page.on('domcontentloaded', () => { domReady = true; });
+    await page.route('https://www.facebook.com/**', route => route.request().resourceType() === 'script'
+      ? scriptReady.then(() => route.fulfill({ contentType:'application/javascript', body:'' })).catch(() => {})
+      : route.fulfill({ contentType:'text/html; charset=utf-8', body:'<html><body><h1>Biblioteca de Anúncios</h1><div>~37 resultados</div><script src="/slow.js"></script></body></html>' }));
+    const response = await navigateLibrary(page, 'https://www.facebook.com/ads/library/?q=fixture', 1500);
+    const result = await readLibraryCount(page, { timeout:1500, status:()=>response.status() });
+    assert.equal(result.count,37);
+    assert.equal(domReady,false);
+  } finally { release(); await browser.close(); }
 });

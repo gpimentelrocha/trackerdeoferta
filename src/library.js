@@ -2,8 +2,9 @@ import { chromium } from 'playwright-core';
 import { existsSync } from 'node:fs';
 import { parseObservedAds } from './ad-dates.js';
 import { localDate } from './time.js';
+import { CollectionError, collectionFailure, reportCollectionFailure } from './collection-error.js';
 
-export class CollectionError extends Error {}
+export { CollectionError } from './collection-error.js';
 let serverlessBinaryPromise;
 
 export function validateLibraryUrl(input) {
@@ -59,7 +60,7 @@ export async function readLibraryCount(page, { timeout = 45000, status = () => 2
     }
     const header = text.split(/(?:Identificação da biblioteca|Library ID):/i)[0].slice(0, 18000);
     if (/temporarily blocked|temporariamente bloquead|captcha|confirme que você é humano|log in to continue|entre para continuar|you must log in|você precisa entrar/i.test(header)) {
-      throw new CollectionError('O Facebook solicitou login ou bloqueou a consulta automática. Abra a biblioteca para conferir; a última contagem foi preservada.');
+      throw new CollectionError('O Facebook solicitou login ou bloqueou a consulta automática. Abra a biblioteca para conferir; a última contagem foi preservada.', 'FACEBOOK_ACCESS_RESTRICTED');
     }
     if (status() >= 200 && status() < 300) {
       const result = parseCount(header);
@@ -71,8 +72,14 @@ export async function readLibraryCount(page, { timeout = 45000, status = () => 2
     }
     if (Date.now() < deadline) await page.waitForTimeout(Math.min(500, deadline - Date.now()));
   }
-  if (status() >= 400) throw new CollectionError(`Facebook retornou HTTP ${status()} e não concluiu o carregamento. A contagem não foi alterada.`);
-  throw new CollectionError('O Facebook não exibiu uma contagem reconhecível. A consulta pode exigir login ou estar indisponível. A última contagem foi preservada.');
+  if (status() >= 400) throw new CollectionError(`Facebook retornou HTTP ${status()} e não concluiu o carregamento. A contagem não foi alterada.`, 'FACEBOOK_HTTP_FAILED');
+  throw new CollectionError('O Facebook não exibiu uma contagem reconhecível. A consulta pode exigir login ou estar indisponível. A última contagem foi preservada.', 'FACEBOOK_COUNT_MISSING');
+}
+
+// Basta receber o documento. A contagem é aguardada por readLibraryCount;
+// recursos lentos que atrasam DOMContentLoaded não devem descartar um total visível.
+export function navigateLibrary(page, url, timeout) {
+  return page.goto(url, { waitUntil: 'commit', timeout });
 }
 
 export async function collectAdSample(page, { deadline, maxAds = 40 } = {}) {
@@ -96,6 +103,8 @@ export async function collectAdSample(page, { deadline, maxAds = 40 } = {}) {
 export async function collectLibraryCount(input, { timeout = 45000 } = {}) {
   const url = validateLibraryUrl(input);
   let browser;
+  let stage = 'browser_setup';
+  let mainStatus = 0;
   try {
     let options;
     if (process.env.VERCEL) {
@@ -107,7 +116,9 @@ export async function collectLibraryCount(input, { timeout = 45000 } = {}) {
       if (!executablePath) throw new CollectionError('Chromium não instalado. Consulte as instruções de instalação.');
       options = { executablePath, headless: true, args: ['--no-sandbox', '--disable-dev-shm-usage'] };
     }
+    stage = 'browser_launch';
     browser = await chromium.launch(options);
+    stage = 'browser_context';
     const context = await browser.newContext({ locale: 'pt-BR', viewport: { width: 1365, height: 900 } });
     await context.route('**/*', route => {
       const target = new URL(route.request().url());
@@ -115,19 +126,21 @@ export async function collectLibraryCount(input, { timeout = 45000 } = {}) {
       return allowed ? route.continue() : route.abort();
     });
     const page = await context.newPage();
-    let mainStatus = 0;
     page.on('response', response => {
       if (response.request().isNavigationRequest() && response.frame() === page.mainFrame()) mainStatus = response.status();
     });
     const deadline = Date.now() + timeout;
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout });
+    stage = 'navigation';
+    await navigateLibrary(page, url, timeout);
+    stage = 'count';
     const result = await readLibraryCount(page, { timeout: Math.max(1, deadline - Date.now()), status: () => mainStatus });
     const ad_sample = result.count > 0 ? await collectAdSample(page, { deadline }) : { version: 1, scope: 'loaded_active_ads', ads: [] };
     return { ...result, ad_sample };
   } catch (error) {
-    if (error instanceof CollectionError) throw error;
-    throw new CollectionError('Não foi possível acessar a Biblioteca de Anúncios. Verifique a conexão, a permissão de rede e a disponibilidade do Facebook.');
+    const failure = collectionFailure(error, { stage, httpStatus: mainStatus });
+    reportCollectionFailure(failure, { stage, httpStatus: mainStatus });
+    throw failure;
   } finally {
-    await browser?.close();
+    await browser?.close().catch(() => {});
   }
 }
