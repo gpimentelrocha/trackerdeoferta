@@ -1,20 +1,16 @@
 import { createApp } from './app.js';
-import { createAuth } from './auth.js';
+import { createPersonalAccess } from './auth.js';
 import { createCloudStore } from './store-libsql.js';
 import { createServerlessCollector } from './serverless-collector.js';
 import { collectLibraryCount } from './library.js';
 
-const requirements = [
-  ['TURSO_DATABASE_URL', 0], ['TURSO_AUTH_TOKEN', 0],
-  ['TRACKER_PASSWORD', 16], ['SESSION_SECRET', 32], ['CRON_SECRET', 32]
-];
+const requirements = ['TURSO_DATABASE_URL', 'TURSO_AUTH_TOKEN'];
 
 export function configurationIssues(environment) {
   const issues = [];
-  for (const [name, minimum] of requirements) {
+  for (const name of requirements) {
     const value = environment[name];
     if (typeof value !== 'string' || !value.trim()) issues.push({ name, reason: 'missing' });
-    else if (minimum && value.length < minimum) issues.push({ name, reason: 'too_short', minimum });
   }
   const input = environment.TURSO_DATABASE_URL;
   if (typeof input === 'string' && input.trim()) {
@@ -33,7 +29,6 @@ function configurationMessage(issues) {
   const missing = issues.filter(issue => issue.reason === 'missing').map(issue => issue.name);
   if (missing.length) parts.push(`Adicione na Vercel → Settings → Environment Variables: ${missing.join(', ')}.`);
   for (const issue of issues) {
-    if (issue.reason === 'too_short') parts.push(`${issue.name} precisa de pelo menos ${issue.minimum} caracteres.`);
     if (issue.reason === 'invalid_url') parts.push('TURSO_DATABASE_URL deve ser a URL libsql:// ou HTTPS do banco, sem espaços, usuário, senha ou parâmetros.');
   }
   parts.push('Habilite as variáveis para Production (e Preview se estiver usando um link de teste). Depois de salvar, faça Redeploy.');
@@ -56,7 +51,7 @@ export function createProductionHandler({ getEnvironment = () => process.env, op
     if (issues.length) return sendUnavailable(res, { code: 'CONFIGURATION_REQUIRED', issues, error: configurationMessage(issues) });
     try {
       if (!appPromise) appPromise = (async () => {
-        const auth = createAuth({ required: true, password: environment.TRACKER_PASSWORD, sessionSecret: environment.SESSION_SECRET, cronSecret: environment.CRON_SECRET });
+        const auth = createPersonalAccess();
         const store = await openStore({ url: environment.TURSO_DATABASE_URL, authToken: environment.TURSO_AUTH_TOKEN });
         const collector = createServerlessCollector(store, collect);
         return createApp(store, collector, { auth, staticFiles: false, platform: 'vercel' });

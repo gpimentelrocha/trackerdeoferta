@@ -2,9 +2,9 @@ import express from 'express';
 import { fileURLToPath } from 'node:url';
 import { validateLibraryUrl } from './library.js';
 import { TIME_ZONE } from './time.js';
-import { createAuth } from './auth.js';
+import { createPersonalAccess } from './auth.js';
 
-export function createApp(store, collector, { auth = createAuth(), staticFiles = true, platform = 'local' } = {}) {
+export function createApp(store, collector, { auth = createPersonalAccess(), staticFiles = true, platform = 'local' } = {}) {
   const app = express();
   app.disable('x-powered-by');
   app.use((req, res, next) => {

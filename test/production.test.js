@@ -7,7 +7,7 @@ import { createCloudStore } from '../src/store-libsql.js';
 import { createProductionHandler, configurationIssues } from '../src/production.js';
 
 function settings() {
-  return { TURSO_DATABASE_URL: 'libsql://test-database.turso.io', TURSO_AUTH_TOKEN: randomBytes(32).toString('hex'), TRACKER_PASSWORD: randomBytes(20).toString('hex'), SESSION_SECRET: randomBytes(32).toString('hex'), CRON_SECRET: randomBytes(32).toString('hex') };
+  return { TURSO_DATABASE_URL: 'libsql://test-database.turso.io', TURSO_AUTH_TOKEN: randomBytes(32).toString('hex') };
 }
 async function serve(handler, run) {
   const server = createServer(handler).listen(0, '127.0.0.1');
@@ -24,20 +24,20 @@ test('inicialização informa todas as variáveis ausentes sem tentar abrir o ba
     assert.equal(response.status, 503);
     const result = await response.json();
     assert.equal(result.code, 'CONFIGURATION_REQUIRED');
-    assert.deepEqual(result.issues.map(issue => issue.name), ['TURSO_DATABASE_URL', 'TURSO_AUTH_TOKEN', 'TRACKER_PASSWORD', 'SESSION_SECRET', 'CRON_SECRET']);
+    assert.deepEqual(result.issues.map(issue => issue.name), ['TURSO_DATABASE_URL', 'TURSO_AUTH_TOKEN']);
     assert.match(result.error, /Redeploy/);
     assert.equal(opened, false);
   });
 });
 
-test('valida cada segredo, URL e escopo sem retornar seus valores', () => {
+test('valida URL sem expor valores; antigas variáveis de senha não são obrigatórias', () => {
   const environment = settings();
   environment.TRACKER_PASSWORD = 'curta';
   environment.SESSION_SECRET = 'curto';
   environment.CRON_SECRET = 'curto';
   environment.TURSO_DATABASE_URL = 'https://user:private@database.turso.io/?token=private';
   const issues = configurationIssues(environment);
-  assert.deepEqual(issues.map(issue => issue.name), ['TRACKER_PASSWORD', 'SESSION_SECRET', 'CRON_SECRET', 'TURSO_DATABASE_URL']);
+  assert.deepEqual(issues.map(issue => issue.name), ['TURSO_DATABASE_URL']);
   assert.equal(JSON.stringify(issues).includes('private'), false);
   assert.deepEqual(configurationIssues(settings()), []);
 });
@@ -74,8 +74,40 @@ test('falha inicial de conexão permite nova tentativa e entrega API quando o ba
       const second = await fetch(base + '/api/health');
       assert.equal(second.status, 200);
       assert.equal((await second.json()).status, 'ok');
-      assert.equal((await fetch(base + '/api/offers')).status, 401);
+      assert.equal((await fetch(base + '/api/offers')).status, 200);
       assert.equal(calls, 2);
+    });
+  } finally { store?.close(); }
+});
+
+
+test('produção pessoal cadastra, atualiza e executa cron com apenas as duas variáveis do Turso', async () => {
+  let store;
+  let collections = 0;
+  const handler = createProductionHandler({
+    getEnvironment: settings,
+    openStore: async () => {
+      store = await createCloudStore({ client: createClient({ url: 'file::memory:' }) });
+      return store;
+    },
+    collect: async () => { collections++; return { count: 41, precision: 'exact', label: '41 resultados' }; }
+  });
+  try {
+    await serve(handler, async base => {
+      const session = await (await fetch(base + '/api/session')).json();
+      assert.deepEqual(session, { required: false, authenticated: true });
+      const created = await fetch(base + '/api/offers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'Oferta pessoal', url: 'https://www.facebook.com/ads/library/?q=oferta&country=BR' }) });
+      assert.equal(created.status, 201);
+      const offer = await created.json();
+      assert.equal(offer.latest.count, 41);
+      const updated = await fetch(base + '/api/offers/' + offer.id + '/refresh', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      assert.equal(updated.status, 200);
+      assert.equal(collections, 2);
+      assert.equal((await fetch(base + '/api/cron')).status, 200);
+      const listed = await (await fetch(base + '/api/offers')).json();
+      assert.equal(listed.offers.length, 1);
+      assert.equal(listed.offers[0].history.length, 1);
+      assert.equal(listed.offers[0].latest.count, 41);
     });
   } finally { store?.close(); }
 });

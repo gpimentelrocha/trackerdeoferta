@@ -12,13 +12,10 @@ Acompanhe a quantidade de anúncios das suas ofertas, com atualização diária 
 | --- | --- |
 | `TURSO_DATABASE_URL` | URL do banco Turso |
 | `TURSO_AUTH_TOKEN` | Token do banco Turso |
-| `TRACKER_PASSWORD` | Sua senha para entrar no app, com 16+ caracteres |
-| `SESSION_SECRET` | Um segredo aleatório com 32+ caracteres |
-| `CRON_SECRET` | Outro segredo aleatório com 32+ caracteres |
 
 4. Clique em **Deploy**. O projeto já tem a configuração da Vercel; use Node.js 24 e Fluid Compute com duração de função de 300 segundos.
 
-Guarde senhas e tokens nas configurações da Vercel, nunca no GitHub ou no chat.
+O app abre diretamente, sem login ou senha. Só essas duas variáveis do Turso são necessárias. Guarde o token na Vercel, nunca no GitHub ou no chat.
 
 **Atualização diária:** por volta das 9h de Fortaleza (no plano Hobby, entre 9h e 10h). Até 10 ofertas. A primeira consulta inicia o histórico; o gráfico cresce com as próximas coletas e preserva dias sem dados como lacunas. A contagem pode ser aproximada e segue a página e os filtros do link da Meta.
 

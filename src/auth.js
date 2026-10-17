@@ -48,3 +48,14 @@ export function createAuth({ password = process.env.TRACKER_PASSWORD, sessionSec
     next();
   };
 }
+
+// Workspace pessoal: o app e o cron abrem diretamente, sem senha ou cookie.
+export function createPersonalAccess() {
+  return (req, res, next) => {
+    if (req.path.startsWith('/api/')) res.set('Cache-Control', 'no-store');
+    if (req.path === '/api/session' && req.method === 'GET') {
+      return res.json({ required: false, authenticated: true });
+    }
+    next();
+  };
+}
