@@ -1,4 +1,5 @@
 import express from 'express';
+import { registerOperationRoutes } from './operation-routes.js';
 import { fileURLToPath } from 'node:url';
 import { validateLibraryUrl } from './library.js';
 import { TIME_ZONE } from './time.js';
@@ -21,7 +22,7 @@ export function createApp(store, collector, { auth = createPersonalAccess(), sta
     }
     next();
   });
-  app.use(express.json({ limit: '16kb' }));
+  app.use(express.json({ limit: '128kb' }));
   app.use(auth);
   app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
   app.get('/api/offers', async (req, res) => {
@@ -71,6 +72,7 @@ export function createApp(store, collector, { auth = createPersonalAccess(), sta
     if (!await store.remove(req.params.id)) return res.status(404).json({ error: 'Oferta não encontrada.' });
     res.status(204).end();
   });
+  registerOperationRoutes(app, store.operation);
   app.use('/api', (req, res) => res.status(404).json({ error: 'Rota não encontrada.' }));
   if (staticFiles) app.use(express.static(fileURLToPath(new URL('../public', import.meta.url))));
   app.use((err, req, res, next) => {

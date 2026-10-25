@@ -1,14 +1,18 @@
 import { DatabaseSync } from 'node:sqlite';
 import { MAX_OFFERS } from './store-libsql.js';
+import { OPERATION_TABLE_COLUMNS } from './operation.js';
 import { OFFER_DETAIL_COLUMNS } from './offer-details.js';
 
 export async function importLocalData(store, path) {
   const source = new DatabaseSync(path, { readOnly: true });
   let offers, snapshots;
+  const operation = {};
   try {
     source.exec('BEGIN');
     offers = source.prepare('SELECT * FROM offers ORDER BY created_at').all();
     snapshots = source.prepare('SELECT * FROM snapshots ORDER BY id').all();
+    const tables = new Set(source.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map(row=>row.name));
+    for (const table of Object.keys(OPERATION_TABLE_COLUMNS)) operation[table] = tables.has(table) ? source.prepare(`SELECT * FROM ${table}`).all() : [];
     source.exec('COMMIT');
   } finally { source.close(); }
   if (offers.length > MAX_OFFERS) throw new Error(`A versão Vercel suporta até ${MAX_OFFERS} ofertas. A origem não foi alterada.`);
@@ -16,14 +20,18 @@ export async function importLocalData(store, path) {
   try {
     const a = await tx.execute('SELECT COUNT(*) AS n FROM offers');
     const b = await tx.execute('SELECT COUNT(*) AS n FROM snapshots');
-    if (Number(a.rows[0].n) || Number(b.rows[0].n)) throw new Error('O Turso de destino deve estar vazio. Nenhum dado existente foi substituído.');
+    const own = await tx.execute('SELECT (SELECT COUNT(*) FROM own_offers) + (SELECT COUNT(*) FROM own_materials) AS n');
+    if (Number(a.rows[0].n) || Number(b.rows[0].n) || Number(own.rows[0].n)) throw new Error('O Turso de destino deve estar vazio. Nenhum dado existente foi substituído.');
     for (const offer of offers) {
       const interrupted = ['queued', 'updating'].includes(offer.state);
       await tx.execute({ sql: `INSERT INTO offers(id,name,url,created_at,last_attempt,last_error,state,scheduled_day,${OFFER_DETAIL_COLUMNS.join(',')}) VALUES(?,?,?,?,?,?,?,?,${OFFER_DETAIL_COLUMNS.map(() => '?').join(',')})`, args: [offer.id, offer.name, offer.url, offer.created_at, offer.last_attempt, interrupted ? 'A consulta foi interrompida na migração. Atualize novamente.' : offer.last_error, interrupted ? 'error' : offer.state, offer.scheduled_day, ...OFFER_DETAIL_COLUMNS.map(key => offer[key] ?? null)] });
     }
     for (const row of snapshots) await tx.execute({ sql: 'INSERT INTO snapshots(id,offer_id,day,count,precision,label,collected_at,ad_sample) VALUES(?,?,?,?,?,?,?,?)', args: [row.id, row.offer_id, row.day, row.count, row.precision, row.label, row.collected_at, row.ad_sample ?? null] });
+    for (const [table,columns] of Object.entries(OPERATION_TABLE_COLUMNS)) {
+      for (const row of operation[table]) await tx.execute({sql:`INSERT INTO ${table}(${columns.join(',')}) VALUES(${columns.map(()=>'?').join(',')})`,args:columns.map(key=>row[key])});
+    }
     await tx.commit();
-    return { offers: offers.length, snapshots: snapshots.length };
+    return { offers: offers.length, snapshots: snapshots.length, ownOffers:operation.own_offers.length, materials:operation.own_materials.length };
   } catch (error) { await tx.rollback(); throw error; }
   finally { tx.close(); }
 }

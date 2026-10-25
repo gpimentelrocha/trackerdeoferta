@@ -1,3 +1,4 @@
+import { OPERATION_SCHEMA, createOperationStore } from './operation.js';
 import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
@@ -21,6 +22,18 @@ export function createStore(path) {
       day TEXT NOT NULL, count INTEGER NOT NULL CHECK(count >= 0), precision TEXT NOT NULL,
       label TEXT NOT NULL, collected_at TEXT NOT NULL, UNIQUE(offer_id, day)
     );`);
+  for (const statement of OPERATION_SCHEMA) db.exec(statement);
+  const executeOperation = query => {
+    const { sql, args = [] } = typeof query === 'string' ? { sql:query } : query;
+    const statement = db.prepare(sql);
+    if (/^SELECT/i.test(sql)) return { rows:statement.all(...args) };
+    return { rows:[], rowsAffected:Number(statement.run(...args).changes) };
+  };
+  const operation = createOperationStore(executeOperation, queries => {
+    db.exec('BEGIN IMMEDIATE');
+    try { const results = queries.map(executeOperation); db.exec('COMMIT'); return results; }
+    catch (error) { db.exec('ROLLBACK'); throw error; }
+  });
   db.exec('BEGIN IMMEDIATE');
   try {
     const columns = new Set(db.prepare('PRAGMA table_info(offers)').all().map(column => column.name));
@@ -37,7 +50,7 @@ export function createStore(path) {
     return attachOfferAnalysis(offer, history);
   }
   return {
-    db, get,
+    db, get, operation,
     list: () => db.prepare('SELECT id FROM offers ORDER BY created_at DESC').all().map(row => get(row.id)),
     create(name, url, details = {}) {
       const id = randomUUID();

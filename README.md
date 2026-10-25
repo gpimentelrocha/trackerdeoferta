@@ -1,5 +1,7 @@
 # ⚡ Eletric Offer Track
 
+**Minhas ofertas:** organize suas ofertas próprias, copys, roteiros, criativos e ângulos, com formato, status, notas e links de arquivos. Os dados ficam no mesmo Turso; essa aba não depende de consultas ao Facebook e não exige serviço extra de armazenamento.
+
 Acompanhe a quantidade de anúncios das suas ofertas, com atualização diária e gráfico de evolução. Classifique por **Info ou Drop**, **nicho** e **TSL, VSL, QUIZ ou QUIZ + VSL**. Use **Editar** para completar ou alterar a classificação. Cada oferta também mostra os dias desde o início dos anúncios observados e uma **nota de triagem de 0 a 10**, com critérios em **Ver análise**.
 
 ## Colocar na Vercel

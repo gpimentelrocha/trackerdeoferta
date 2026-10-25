@@ -80,10 +80,10 @@ test('navegador: cadastro, contagem, histórico, busca, edição e exclusão em 
     await page.locator('#rename-form [name=funnel]').selectOption('X1');
     await page.getByRole('button', { name: 'Salvar alterações' }).click();
     await page.getByRole('heading', { name: 'Oferta editada', exact: true }).waitFor();
-    assert.match(await page.locator('.offer-tags').innerText(), /Drop/);
-    assert.match(await page.locator('.offer-tags').innerText(), /Prosperidade/);
-    assert.match(await page.locator('.offer-tags').innerText(), /X1/);
-    assert.match(await page.locator('.offer-tags').innerText(), /LATAM/);
+    assert.match(await page.locator('#offer-list .offer-tags').innerText(), /Drop/);
+    assert.match(await page.locator('#offer-list .offer-tags').innerText(), /Prosperidade/);
+    assert.match(await page.locator('#offer-list .offer-tags').innerText(), /X1/);
+    assert.match(await page.locator('#offer-list .offer-tags').innerText(), /LATAM/);
     await page.reload();
     await page.getByRole('heading', { name: 'Oferta editada', exact: true }).waitFor();
     assert.equal(await page.locator('.funnel-shortcuts a').count(), 4);

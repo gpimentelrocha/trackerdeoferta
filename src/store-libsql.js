@@ -1,3 +1,4 @@
+import { OPERATION_SCHEMA, createOperationStore } from './operation.js';
 import { createClient } from '@libsql/client/web';
 import { randomUUID } from 'node:crypto';
 import { localDate } from './time.js';
@@ -39,7 +40,7 @@ export async function createCloudStore({ client, url = process.env.TURSO_DATABAS
     if (!/^libsql:\/\/[^/]+\/?$/.test(url) && !/^https:\/\/[^/]+\/?$/.test(url)) throw new Error('A URL do Turso deve usar libsql:// ou HTTPS.');
     client = createClient({ url, authToken });
   }
-  await client.batch(schema, 'write');
+  await client.batch([...schema, ...OPERATION_SCHEMA], 'write');
   // Leitura do schema e ALTER sob o mesmo bloqueio: cold starts concorrentes
   // não tentam criar a mesma coluna. Nenhum registro existente é reescrito.
   const migration = await client.transaction('write');
@@ -60,7 +61,7 @@ export async function createCloudStore({ client, url = process.env.TURSO_DATABAS
     return offers.rows[0] ? hydrate(offers.rows[0], snapshots.rows) : null;
   }
   return {
-    client, get, limit: MAX_OFFERS,
+    client, get, operation:createOperationStore(query=>client.execute(query),(queries,mode)=>client.batch(queries,mode)), limit: MAX_OFFERS,
     async list() {
       const [offers, snapshots] = await client.batch([
         'SELECT * FROM offers ORDER BY created_at DESC',

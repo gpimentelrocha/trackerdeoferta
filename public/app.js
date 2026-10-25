@@ -1,3 +1,4 @@
+import { initMyOffers } from './my-offers.js';
 import { createDailyChart, valueLabel, fullDate } from './daily-chart.js';
 const $ = selector => document.querySelector(selector);
 const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
@@ -254,7 +255,7 @@ $('#login-form').addEventListener('submit', async event => {
     authenticated = true;
     $('#logout').hidden = false;
     $('#login-dialog').close();
-    await load();
+    await routeView();
   } catch (error) { $('#login-error').textContent = error.message; $('#login-error').hidden = false; }
   finally { button.disabled = false; }
 });
@@ -262,10 +263,28 @@ $('#logout').addEventListener('click', async () => {
   try { await api('/api/logout', { method: 'POST', body: '{}' }); offers = []; render(); showLogin(); }
   catch (error) { toast(error.message); }
 });
+const operation = initMyOffers({api,toast});
+async function routeView() {
+  const mine = location.hash === '#minhas-ofertas' || location.hash.startsWith('#minhas-ofertas/');
+  $('#overview-view').hidden = mine;
+  $('#my-offers-view').hidden = !mine;
+  $('#current-view-title').textContent = mine ? 'Minhas ofertas' : 'Visão geral';
+  for (const link of document.querySelectorAll('[data-view]')) {
+    const active = link.dataset.view === (mine ? 'operation' : 'overview');
+    link.classList.toggle('active',active);
+    if (active) link.setAttribute('aria-current','page'); else link.removeAttribute('aria-current');
+  }
+  if (!mine) operation.hide();
+  if (!authenticated) return;
+  if (mine) await operation.show(location.hash.split('/')[1]);
+  else { await load(); operation.refreshCount(); renderEvolution(true); }
+}
+window.addEventListener('hashchange',routeView);
 try {
   const session = await api('/api/session');
   authenticated = session.authenticated;
   $('#logout').hidden = !session.required;
-  if (authenticated) await load(); else showLogin();
+  await routeView();
+  if (!authenticated) showLogin();
 } catch (error) { $('#connection-error').textContent = error.message; $('#connection-error').hidden = false; }
-setInterval(load, 5000);
+setInterval(() => { if (!document.hidden && !$('#overview-view').hidden) load(); }, 5000);
