@@ -1,7 +1,7 @@
 const $ = selector => document.querySelector(selector);
 const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
-const kinds = {copy:'Copy',script:'Roteiro',creative:'Criativo',angle:'Ângulo'};
-const pluralKinds = {copy:'Copys',script:'Roteiros',creative:'Criativos',angle:'Ângulos'};
+const kinds = {copy:'Copy',creative:'Criativo',angle:'Ângulo'};
+const pluralKinds = {copy:'Copys',creative:'Criativos',angle:'Ângulos'};
 const offerStatuses = {idea:'Ideia',production:'Em produção',testing:'Em teste',scaling:'Escalando',paused:'Pausada'};
 const statuses = {draft:'Rascunho',ready:'Pronto',testing:'Em teste',winner:'Vencedor',archived:'Arquivado'};
 const offerFields = ['name','niche','status','sales_url','notes'];

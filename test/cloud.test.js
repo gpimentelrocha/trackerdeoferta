@@ -79,7 +79,8 @@ test('importação preserva histórico original e recusa sobrescrever Turso com 
   const offer = source.create('Original', url, {offer_type:'info',niche:'Prosperidade',funnel:'X1',market:'EUA',sales_url:'https://example.com/vendas',checkout_url:'https://example.com/checkout',backredirect_url:'https://example.com/voltar',upsell_url:'https://example.com/upsell'});
   source.success(offer.id, result(290));
   const own = await source.operation.create({name:'Minha operação',notes:'Notas da oferta'});
-  await source.operation.createMaterial(own.id,{kind:'script',title:'Roteiro original',content:'Gancho e cenas',script:'Roteiro separado\nCena 1',angle:'Curiosidade'});
+  await source.operation.createMaterial(own.id,{kind:'copy',title:'Roteiro original',content:'Gancho e cenas',script:'Roteiro separado\nCena 1',angle:'Curiosidade'});
+  source.db.exec("UPDATE own_materials SET kind='script'");
   source.close();
   const destination = await database();
   try {
@@ -87,6 +88,7 @@ test('importação preserva histórico original e recusa sobrescrever Turso com 
     assert.equal((await destination.get(offer.id)).latest.count, 290);
     assert.equal((await destination.operation.get(own.id)).notes,'Notas da oferta');
     assert.equal((await destination.operation.materials(own.id))[0].content,'Gancho e cenas');
+    assert.equal((await destination.operation.materials(own.id))[0].kind,'copy');
     assert.equal((await destination.operation.materials(own.id))[0].script,'Roteiro separado\nCena 1');
     assert.equal((await destination.get(offer.id)).offer_type, 'info');
     assert.equal((await destination.get(offer.id)).niche, 'Prosperidade');

@@ -42,6 +42,7 @@ export function createStore(path) {
     if (!snapshotColumns.has('ad_sample')) db.exec('ALTER TABLE snapshots ADD COLUMN ad_sample TEXT');
     const materialColumns = new Set(db.prepare('PRAGMA table_info(own_materials)').all().map(column => column.name));
     if (!materialColumns.has('script')) db.exec("ALTER TABLE own_materials ADD COLUMN script TEXT NOT NULL DEFAULT ''");
+    db.prepare("UPDATE own_materials SET kind='copy' WHERE kind='script'").run();
     db.exec('COMMIT');
   } catch (error) { db.exec('ROLLBACK'); throw error; }
   db.prepare("UPDATE offers SET state='error', last_error='A consulta foi interrompida. Atualize novamente.' WHERE state IN ('queued', 'updating')").run();

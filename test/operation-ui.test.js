@@ -28,7 +28,7 @@ test('Minhas ofertas: produção completa, filtros, textos, links, edição, per
     await page.getByLabel('Notas e contexto',{exact:true}).fill('Público: mulheres interessadas em skincare.\nPromessa: uma rotina simples.');
     await page.getByRole('button',{name:'Salvar oferta',exact:true}).click();
     await page.getByRole('heading',{name:'Minha oferta de skincare',exact:true}).waitFor();
-    for (const [kind,title] of [['copy','Copy de lançamento'],['script','Roteiro de depoimento'],['creative','Vídeo UGC 01'],['angle','Ângulo de curiosidade']]) {
+    for (const [kind,title] of [['copy','Copy de lançamento'],['creative','Vídeo UGC 01'],['angle','Ângulo de curiosidade']]) {
       await page.locator('[data-operation-action=new-material]').first().click();
       await page.getByLabel('Tipo de material',{exact:true}).selectOption(kind);
       await page.getByLabel('Título do material').fill(title);
@@ -42,7 +42,9 @@ test('Minhas ofertas: produção completa, filtros, textos, links, edição, per
       await page.getByRole('button',{name:'Salvar material',exact:true}).click();
       await page.getByRole('heading',{name:title,exact:true}).waitFor();
     }
-    assert.equal(await page.locator('.material-card').count(),4);
+    assert.equal(await page.locator('.material-card').count(),3);
+    assert.equal(await page.locator('[data-material-filter=script]').count(),0);
+    assert.equal(await page.locator('#my-material-form [name=kind] option[value=script]').count(),0);
     await page.getByRole('button',{name:/^Criativos /}).click();
     assert.equal(await page.locator('.material-card').count(),1);
     assert.equal(await page.locator('.material-card h3').innerText(),'Vídeo UGC 01');
@@ -84,6 +86,7 @@ test('Minhas ofertas: produção completa, filtros, textos, links, edição, per
     await page.getByLabel('Roteiro (opcional)',{exact:true}).fill('');
     await page.getByRole('button',{name:'Salvar material',exact:true}).click();
     await page.locator('#my-material-dialog[open]').waitFor({state:'hidden'});
+    await creative.getByText('Roteiro salvo',{exact:true}).waitFor({state:'detached'});
     assert.doesNotMatch(await creative.innerText(),/Roteiro salvo/);
     assert.match(await creative.innerText(),/Copy vencedora/);
     await page.screenshot({path:'/tmp/eletric-operation-desktop.png',fullPage:true});

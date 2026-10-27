@@ -28,7 +28,7 @@ export async function importLocalData(store, path) {
     }
     for (const row of snapshots) await tx.execute({ sql: 'INSERT INTO snapshots(id,offer_id,day,count,precision,label,collected_at,ad_sample) VALUES(?,?,?,?,?,?,?,?)', args: [row.id, row.offer_id, row.day, row.count, row.precision, row.label, row.collected_at, row.ad_sample ?? null] });
     for (const [table,columns] of Object.entries(OPERATION_TABLE_COLUMNS)) {
-      for (const row of operation[table]) await tx.execute({sql:`INSERT INTO ${table}(${columns.join(',')}) VALUES(${columns.map(()=>'?').join(',')})`,args:columns.map(key=>key === 'script' ? row[key] ?? '' : row[key])});
+      for (const row of operation[table]) await tx.execute({sql:`INSERT INTO ${table}(${columns.join(',')}) VALUES(${columns.map(()=>'?').join(',')})`,args:columns.map(key=>key === 'script' ? row[key] ?? '' : key === 'kind' && row[key] === 'script' ? 'copy' : row[key])});
     }
     await tx.commit();
     return { offers: offers.length, snapshots: snapshots.length, ownOffers:operation.own_offers.length, materials:operation.own_materials.length };

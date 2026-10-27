@@ -16,7 +16,7 @@ export const OPERATION_SCHEMA = [
   'CREATE INDEX IF NOT EXISTS own_materials_offer ON own_materials(offer_id, updated_at)'
 ];
 const offerRules = { name:100, niche:80, status:['idea','production','testing','scaling','paused'], sales_url:'url', notes:10000 };
-const materialRules = { title:120, kind:['copy','script','creative','angle'], content:30000, script:30000, angle:120, format:80, status:['draft','ready','testing','winner','archived'], url:'url' };
+const materialRules = { title:120, kind:['copy','creative','angle'], content:30000, script:30000, angle:120, format:80, status:['draft','ready','testing','winner','archived'], url:'url' };
 export const OPERATION_TABLE_COLUMNS = {
   own_offers:['id',...Object.keys(offerRules),'created_at','updated_at'],
   own_materials:['id','offer_id',...Object.keys(materialRules),'created_at','updated_at']
