@@ -40,6 +40,8 @@ export function createStore(path) {
     for (const column of OFFER_DETAIL_COLUMNS) if (!columns.has(column)) db.exec(`ALTER TABLE offers ADD COLUMN ${column} TEXT`);
     const snapshotColumns = new Set(db.prepare('PRAGMA table_info(snapshots)').all().map(column => column.name));
     if (!snapshotColumns.has('ad_sample')) db.exec('ALTER TABLE snapshots ADD COLUMN ad_sample TEXT');
+    const materialColumns = new Set(db.prepare('PRAGMA table_info(own_materials)').all().map(column => column.name));
+    if (!materialColumns.has('script')) db.exec("ALTER TABLE own_materials ADD COLUMN script TEXT NOT NULL DEFAULT ''");
     db.exec('COMMIT');
   } catch (error) { db.exec('ROLLBACK'); throw error; }
   db.prepare("UPDATE offers SET state='error', last_error='A consulta foi interrompida. Atualize novamente.' WHERE state IN ('queued', 'updating')").run();

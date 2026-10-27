@@ -22,7 +22,7 @@ export function createApp(store, collector, { auth = createPersonalAccess(), sta
     }
     next();
   });
-  app.use(express.json({ limit: '128kb' }));
+  app.use(express.json({ limit: '256kb' }));
   app.use(auth);
   app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
   app.get('/api/offers', async (req, res) => {

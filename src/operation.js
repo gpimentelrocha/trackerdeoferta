@@ -8,7 +8,7 @@ export const OPERATION_SCHEMA = [
   )`,
   `CREATE TABLE IF NOT EXISTS own_materials (
     id TEXT PRIMARY KEY, offer_id TEXT NOT NULL REFERENCES own_offers(id) ON DELETE CASCADE,
-    kind TEXT NOT NULL, title TEXT NOT NULL, content TEXT NOT NULL DEFAULT '',
+    kind TEXT NOT NULL, title TEXT NOT NULL, content TEXT NOT NULL DEFAULT '', script TEXT NOT NULL DEFAULT '',
     angle TEXT NOT NULL DEFAULT '', format TEXT NOT NULL DEFAULT '',
     status TEXT NOT NULL DEFAULT 'draft', url TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL, updated_at TEXT NOT NULL
@@ -16,7 +16,7 @@ export const OPERATION_SCHEMA = [
   'CREATE INDEX IF NOT EXISTS own_materials_offer ON own_materials(offer_id, updated_at)'
 ];
 const offerRules = { name:100, niche:80, status:['idea','production','testing','scaling','paused'], sales_url:'url', notes:10000 };
-const materialRules = { title:120, kind:['copy','script','creative','angle'], content:30000, angle:120, format:80, status:['draft','ready','testing','winner','archived'], url:'url' };
+const materialRules = { title:120, kind:['copy','script','creative','angle'], content:30000, script:30000, angle:120, format:80, status:['draft','ready','testing','winner','archived'], url:'url' };
 export const OPERATION_TABLE_COLUMNS = {
   own_offers:['id',...Object.keys(offerRules),'created_at','updated_at'],
   own_materials:['id','offer_id',...Object.keys(materialRules),'created_at','updated_at']
@@ -31,7 +31,7 @@ export function operationInput(input, { material = false, partial = false } = {}
     let value = input[key];
     if (value === undefined && !partial) value = key === 'status' ? (material ? 'draft' : 'idea') : key === 'kind' ? 'copy' : '';
     if (typeof value !== 'string') fail('Preencha os campos com textos válidos.');
-    if (!['content','notes'].includes(key)) value = value.trim();
+    if (!['content','script','notes'].includes(key)) value = value.trim();
     if ((key === 'name' || key === 'title') && !value) fail('Preencha o nome ou título.');
     if (Array.isArray(rule) && !rule.includes(value)) fail('Escolha uma opção válida para o tipo ou status.');
     if (typeof rule === 'number' && value.length > rule) fail(`O campo ${key} deve ter até ${rule.toLocaleString('pt-BR')} caracteres.`);

@@ -5,7 +5,7 @@ const pluralKinds = {copy:'Copys',script:'Roteiros',creative:'Criativos',angle:'
 const offerStatuses = {idea:'Ideia',production:'Em produção',testing:'Em teste',scaling:'Escalando',paused:'Pausada'};
 const statuses = {draft:'Rascunho',ready:'Pronto',testing:'Em teste',winner:'Vencedor',archived:'Arquivado'};
 const offerFields = ['name','niche','status','sales_url','notes'];
-const materialFields = ['kind','title','status','angle','format','url','content'];
+const materialFields = ['kind','title','status','angle','format','url','content','script'];
 
 export function initMyOffers({api,toast}) {
   let offers = [], offer = null, filter = 'all', request = 0;
@@ -30,14 +30,14 @@ export function initMyOffers({api,toast}) {
   function renderMaterials() {
     if (!offer) return;
     const query = $('#material-search').value.trim().toLocaleLowerCase('pt-BR');
-    const result = offer.materials.filter(item=>(filter === 'all' || item.kind === filter) && [item.title,item.content,item.angle,item.format].some(text=>text.toLocaleLowerCase('pt-BR').includes(query)));
+    const result = offer.materials.filter(item=>(filter === 'all' || item.kind === filter) && [item.title,item.content,item.script || '',item.angle,item.format].some(text=>text.toLocaleLowerCase('pt-BR').includes(query)));
     for (const button of document.querySelectorAll('[data-material-filter]')) {
       const kind = button.dataset.materialFilter;
       button.classList.toggle('selected',kind === filter);
       button.setAttribute('aria-pressed',String(kind === filter));
       button.querySelector('span').textContent = kind === 'all' ? offer.materials.length : offer.materials.filter(item=>item.kind === kind).length;
     }
-    $('#material-list').innerHTML = result.length ? result.map(item=>`<article class="material-card" data-material-id="${item.id}"><div class="material-card-heading"><span class="material-kind">${kinds[item.kind]}</span><span class="operation-status status-${item.status}">${statuses[item.status]}</span></div><h3>${esc(item.title)}</h3>${item.content ? `<p class="material-preview">${esc(item.content)}</p>` : '<p class="material-preview material-muted">Sem texto. Adicione a copy, o roteiro ou suas observações.</p>'}<div class="offer-tags">${[item.angle,item.format].filter(Boolean).map(tag=>`<span>${esc(tag)}</span>`).join('')}</div>${item.url ? `<a class="material-file" href="${esc(item.url)}" target="_blank" rel="noopener noreferrer">Abrir arquivo / referência ↗</a>` : ''}<div class="material-actions"><button class="text-button" data-material-action="read">Ler material</button>${item.content ? '<button class="text-button" data-material-action="copy">Copiar texto</button>' : ''}<button class="text-button" data-material-action="edit">Editar material</button><button class="text-button delete" data-material-action="delete" aria-label="Excluir ${esc(item.title)}">Excluir</button></div></article>`).join('') : `<div class="operation-empty material-empty"><span class="operation-empty-icon" aria-hidden="true">✎</span><h3>${query ? 'Nenhum material corresponde à busca.' : 'Comece com uma ideia.'}</h3><p>${query ? 'Tente outro título, ângulo ou formato.' : 'Guarde sua próxima copy, roteiro, criativo ou ângulo nesta oferta.'}</p>${query ? '' : '<button class="button secondary" data-operation-action="new-material">＋ Adicionar material</button>'}</div>`;
+    $('#material-list').innerHTML = result.length ? result.map(item=>`<article class="material-card" data-material-id="${item.id}"><div class="material-card-heading"><span class="material-kind">${kinds[item.kind]}</span><span class="operation-status status-${item.status}">${statuses[item.status]}</span></div><h3>${esc(item.title)}</h3>${item.content || item.script ? `<p class="material-preview">${esc(item.content || item.script)}</p>` : '<p class="material-preview material-muted">Sem texto. Adicione a copy, o roteiro ou suas observações.</p>'}<div class="offer-tags">${item.script ? '<span>Roteiro salvo</span>' : ''}${[item.angle,item.format].filter(Boolean).map(tag=>`<span>${esc(tag)}</span>`).join('')}</div>${item.url ? `<a class="material-file" href="${esc(item.url)}" target="_blank" rel="noopener noreferrer">Abrir arquivo / referência ↗</a>` : ''}<div class="material-actions"><button class="text-button" data-material-action="read">Ler material</button>${item.content ? '<button class="text-button" data-material-action="copy">Copiar texto</button>' : ''}<button class="text-button" data-material-action="edit">Editar material</button><button class="text-button delete" data-material-action="delete" aria-label="Excluir ${esc(item.title)}">Excluir</button></div></article>`).join('') : `<div class="operation-empty material-empty"><span class="operation-empty-icon" aria-hidden="true">✎</span><h3>${query ? 'Nenhum material corresponde à busca.' : 'Comece com uma ideia.'}</h3><p>${query ? 'Tente outro título, ângulo ou formato.' : 'Guarde sua próxima copy, roteiro, criativo ou ângulo nesta oferta.'}</p>${query ? '' : '<button class="button secondary" data-operation-action="new-material">＋ Adicionar material</button>'}</div>`;
     $('#material-results').textContent = `${result.length} ${result.length === 1 ? 'material' : 'materiais'}`;
   }
   function renderWorkspace() {
@@ -116,6 +116,10 @@ export function initMyOffers({api,toast}) {
       $('#my-read-kind').textContent = kinds[material.kind];
       $('#my-read-title').textContent = material.title;
       $('#my-read-content').textContent = material.content || 'Nenhum texto salvo neste material.';
+      $('#my-read-copy-section').hidden = !material.content && Boolean(material.script);
+      $('#my-read-script-section').hidden = !material.script;
+      $('#my-read-script').textContent = material.script || '';
+      $('#my-read-script-copy').hidden = !material.script;
       $('#my-read-tags').innerHTML = [statuses[material.status],material.angle,material.format].filter(Boolean).map(text=>`<span>${esc(text)}</span>`).join('');
       $('#my-read-link').hidden = !material.url;
       if (material.url) $('#my-read-link').href = material.url; else $('#my-read-link').removeAttribute('href');
@@ -124,6 +128,7 @@ export function initMyOffers({api,toast}) {
     }
   });
   $('#my-read-copy').addEventListener('click',()=>reading && copyText(reading.content));
+  $('#my-read-script-copy').addEventListener('click',()=>reading && copyText(reading.script));
   function handleSave(formId,errorId,save) {
     $(formId).addEventListener('submit',async event=>{
       event.preventDefault();

@@ -392,7 +392,7 @@ td { padding: 13px 8px; border-bottom: 1px solid #303c22; color: #c3ceb4; }
 .operation-form-note { color: #91a077; font-size: 10px; margin: -12px 0 0; }
 #my-offer-dialog, #my-material-dialog, #my-read-dialog, #my-delete-dialog { max-height: calc(100dvh - 32px); overflow-y: auto; }
 #my-material-dialog, #my-read-dialog { width: 690px; }
-#my-read-content { font: inherit; font-size: 13px; line-height: 1.9; white-space: pre-wrap; overflow-wrap: anywhere; color: #ced6be; margin: 24px 0; }
+#my-read-content, #my-read-script { font: inherit; font-size: 13px; line-height: 1.9; white-space: pre-wrap; overflow-wrap: anywhere; color: #ced6be; margin: 24px 0; }
 #my-read-dialog h2 { overflow-wrap: anywhere; }
 #my-read-dialog a.button { text-decoration: none; }
 @media(min-width:1500px) { .operation-layout { grid-template-columns: 285px minmax(0,1fr); gap: 26px; } }
@@ -418,3 +418,6 @@ td { padding: 13px 8px; border-bottom: 1px solid #303c22; color: #c3ceb4; }
   .operation-form-grid { grid-template-columns: 1fr; gap: 0; }
   .operation-empty { padding: 25px 10px; min-height: 330px; }
 }
+
+#my-read-dialog section h3 { font-size: 12px; color: #d9cf92; margin: 24px 0 0; }
+#my-read-dialog .dialog-actions { flex-wrap: wrap; }
