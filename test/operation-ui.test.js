@@ -28,7 +28,7 @@ test('Minhas ofertas: produção completa, filtros, textos, links, edição, per
     await page.getByLabel('Notas e contexto',{exact:true}).fill('Público: mulheres interessadas em skincare.\nPromessa: uma rotina simples.');
     await page.getByRole('button',{name:'Salvar oferta',exact:true}).click();
     await page.getByRole('heading',{name:'Minha oferta de skincare',exact:true}).waitFor();
-    for (const [kind,title] of [['copy','Copy de lançamento'],['creative','Vídeo UGC 01'],['angle','Ângulo de curiosidade']]) {
+    for (const [kind,title] of [['copy','Copy de lançamento'],['copy','Vídeo UGC 01'],['copy','Ângulo de curiosidade']]) {
       await page.locator('[data-operation-action=new-material]').first().click();
       await page.getByLabel('Tipo de material',{exact:true}).selectOption(kind);
       await page.getByLabel('Título do material').fill(title);
@@ -38,19 +38,23 @@ test('Minhas ofertas: produção completa, filtros, textos, links, edição, per
       await page.getByLabel('Link do arquivo ou referência (opcional)',{exact:true}).fill('https://example.com/criativo?a=1&b=2');
       await page.getByLabel('Texto ou copy (opcional)',{exact:true}).fill('Gancho: você já passou por isso?\nCena 1: mostre a rotina.\n<script>window.injected=true</script>');
       assert.equal(await page.getByLabel('Roteiro (opcional)',{exact:true}).getAttribute('required'),null);
-      if (kind === 'creative') await page.getByLabel('Roteiro (opcional)',{exact:true}).fill('Roteiro do vídeo\nCena 1: depoimento\n<script>window.scriptInjected=true</script>');
+      if (title === 'Vídeo UGC 01') await page.getByLabel('Roteiro (opcional)',{exact:true}).fill('Roteiro do vídeo\nCena 1: depoimento\n<script>window.scriptInjected=true</script>');
       await page.getByRole('button',{name:'Salvar material',exact:true}).click();
       await page.getByRole('heading',{name:title,exact:true}).waitFor();
     }
     assert.equal(await page.locator('.material-card').count(),3);
     assert.equal(await page.locator('[data-material-filter=script]').count(),0);
     assert.equal(await page.locator('#my-material-form [name=kind] option[value=script]').count(),0);
-    await page.getByRole('button',{name:/^Criativos /}).click();
+    assert.equal(await page.locator('[data-material-filter=creative], [data-material-filter=angle]').count(),0);
+    assert.deepEqual(await page.locator('#my-material-form [name=kind] option').evaluateAll(options=>options.map(option=>option.value)),['copy']);
+    await page.getByRole('button',{name:/^Copys /}).click();
+    assert.equal(await page.locator('.material-card').count(),3);
+    await page.getByLabel('Buscar materiais').fill('Vídeo UGC 01');
     assert.equal(await page.locator('.material-card').count(),1);
     assert.equal(await page.locator('.material-card h3').innerText(),'Vídeo UGC 01');
     await page.getByLabel('Buscar materiais').fill('inexistente');
     await page.getByRole('heading',{name:'Nenhum material corresponde à busca.'}).waitFor();
-    await page.getByLabel('Buscar materiais').fill('');
+    await page.getByLabel('Buscar materiais').fill('Vídeo UGC 01');
     await page.getByRole('button',{name:'Ler material',exact:true}).click();
     assert.match(await page.locator('#my-read-content').innerText(),/Cena 1/);
     assert.match(await page.locator('#my-read-script').innerText(),/Roteiro do vídeo/);

@@ -1,7 +1,7 @@
 const $ = selector => document.querySelector(selector);
 const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
-const kinds = {copy:'Copy',creative:'Criativo',angle:'Ângulo'};
-const pluralKinds = {copy:'Copys',creative:'Criativos',angle:'Ângulos'};
+const kinds = {copy:'Copy'};
+const pluralKinds = {copy:'Copys'};
 const offerStatuses = {idea:'Ideia',production:'Em produção',testing:'Em teste',scaling:'Escalando',paused:'Pausada'};
 const statuses = {draft:'Rascunho',ready:'Pronto',testing:'Em teste',winner:'Vencedor',archived:'Arquivado'};
 const offerFields = ['name','niche','status','sales_url','notes'];
@@ -20,7 +20,6 @@ export function initMyOffers({api,toast}) {
     $('#my-nav-count').textContent = offers.length;
     $('#my-total-offers').textContent = offers.length;
     $('#my-total-materials').textContent = offers.reduce((sum,item)=>sum+Number(item.material_count),0);
-    $('#my-total-creatives').textContent = offers.reduce((sum,item)=>sum+Number(item.creative_count),0);
   };
   function renderOffers() {
     const query = $('#my-search').value.trim().toLocaleLowerCase('pt-BR');

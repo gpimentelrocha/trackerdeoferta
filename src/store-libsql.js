@@ -52,7 +52,7 @@ export async function createCloudStore({ client, url = process.env.TURSO_DATABAS
     if (!snapshotInfo.rows.some(column => column.name === 'ad_sample')) await migration.execute('ALTER TABLE snapshots ADD COLUMN ad_sample TEXT');
     const materialInfo = await migration.execute('PRAGMA table_info(own_materials)');
     if (!materialInfo.rows.some(column => column.name === 'script')) await migration.execute("ALTER TABLE own_materials ADD COLUMN script TEXT NOT NULL DEFAULT ''");
-    await migration.execute("UPDATE own_materials SET kind='copy' WHERE kind='script'");
+    await migration.execute("UPDATE own_materials SET kind='copy' WHERE kind IN ('script','creative','angle')");
     await migration.commit();
   } catch (error) { await migration.rollback(); throw error; }
   finally { migration.close(); }

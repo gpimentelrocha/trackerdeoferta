@@ -16,7 +16,7 @@ export const OPERATION_SCHEMA = [
   'CREATE INDEX IF NOT EXISTS own_materials_offer ON own_materials(offer_id, updated_at)'
 ];
 const offerRules = { name:100, niche:80, status:['idea','production','testing','scaling','paused'], sales_url:'url', notes:10000 };
-const materialRules = { title:120, kind:['copy','creative','angle'], content:30000, script:30000, angle:120, format:80, status:['draft','ready','testing','winner','archived'], url:'url' };
+const materialRules = { title:120, kind:['copy'], content:30000, script:30000, angle:120, format:80, status:['draft','ready','testing','winner','archived'], url:'url' };
 export const OPERATION_TABLE_COLUMNS = {
   own_offers:['id',...Object.keys(offerRules),'created_at','updated_at'],
   own_materials:['id','offer_id',...Object.keys(materialRules),'created_at','updated_at']
@@ -54,8 +54,7 @@ export function createOperationStore(execute, batch) {
   return {
     get,
     async list() {
-      return (await execute(`SELECT o.*, COUNT(m.id) AS material_count,
-        SUM(CASE WHEN m.kind='creative' THEN 1 ELSE 0 END) AS creative_count
+      return (await execute(`SELECT o.*, COUNT(m.id) AS material_count
         FROM own_offers o LEFT JOIN own_materials m ON m.offer_id=o.id
         GROUP BY o.id ORDER BY o.updated_at DESC, o.id`)).rows;
     },

@@ -322,7 +322,7 @@ td { padding: 13px 8px; border-bottom: 1px solid #303c22; color: #c3ceb4; }
 .main-nav .nav-item.active { border-color: #f2d34f33; }
 .main-nav .nav-item:not(.active):hover { background: #252a1d; color: #e7eacb; }
 .main-nav .nav-item:not(.active) .nav-count { background: #2d3522; color: #b7c39e; }
-.operation-summary { display: grid; grid-template-columns: repeat(3,1fr); border: 1px solid var(--line); border-radius: 10px; background: var(--surface); margin-bottom: 28px; }
+.operation-summary { display: grid; grid-template-columns: repeat(2,1fr); border: 1px solid var(--line); border-radius: 10px; background: var(--surface); margin-bottom: 28px; }
 .operation-summary>div { display: flex; align-items: center; gap: 14px; padding: 22px 26px; }
 .operation-summary>div+div { border-left: 1px solid var(--line); }
 .operation-summary strong { font-size: 27px; color: var(--accent); font-weight: 600; }

@@ -80,7 +80,7 @@ test('importação preserva histórico original e recusa sobrescrever Turso com 
   source.success(offer.id, result(290));
   const own = await source.operation.create({name:'Minha operação',notes:'Notas da oferta'});
   await source.operation.createMaterial(own.id,{kind:'copy',title:'Roteiro original',content:'Gancho e cenas',script:'Roteiro separado\nCena 1',angle:'Curiosidade'});
-  source.db.exec("UPDATE own_materials SET kind='script'");
+  source.db.exec("UPDATE own_materials SET kind='creative'");
   source.close();
   const destination = await database();
   try {
