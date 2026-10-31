@@ -1,3 +1,4 @@
+import { FINANCE_SCHEMA, FINANCE_COLUMNS } from './finance.js';
 import { randomUUID } from 'node:crypto';
 
 export const OPERATION_SCHEMA = [
@@ -13,13 +14,15 @@ export const OPERATION_SCHEMA = [
     status TEXT NOT NULL DEFAULT 'draft', url TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL, updated_at TEXT NOT NULL
   )`,
-  'CREATE INDEX IF NOT EXISTS own_materials_offer ON own_materials(offer_id, updated_at)'
+  'CREATE INDEX IF NOT EXISTS own_materials_offer ON own_materials(offer_id, updated_at)',
+  ...FINANCE_SCHEMA
 ];
 const offerRules = { name:100, niche:80, status:['idea','production','testing','scaling','paused'], sales_url:'url', notes:10000 };
 const materialRules = { title:120, kind:['copy'], content:30000, script:30000, angle:120, format:80, status:['draft','ready','testing','winner','archived'], url:'url' };
 export const OPERATION_TABLE_COLUMNS = {
   own_offers:['id',...Object.keys(offerRules),'created_at','updated_at'],
-  own_materials:['id','offer_id',...Object.keys(materialRules),'created_at','updated_at']
+  own_materials:['id','offer_id',...Object.keys(materialRules),'created_at','updated_at'],
+  own_finance:FINANCE_COLUMNS
 };
 function fail(message, status = 400) { const error = new Error(message); error.status = status; throw error; }
 export function operationInput(input, { material = false, partial = false } = {}) {
@@ -72,9 +75,10 @@ export function createOperationStore(execute, batch) {
     async remove(id) {
       const results = await batch([
         statement('DELETE FROM own_materials WHERE offer_id=?',[id]),
+        statement('UPDATE own_finance SET offer_name=COALESCE((SELECT name FROM own_offers WHERE id=?),offer_name),offer_id=NULL WHERE offer_id=?',[id,id]),
         statement('DELETE FROM own_offers WHERE id=?',[id])
       ], 'write');
-      return results[1].rowsAffected > 0;
+      return results.at(-1).rowsAffected > 0;
     },
     async materials(offerId) {
       return (await execute(statement('SELECT * FROM own_materials WHERE offer_id=? ORDER BY updated_at DESC, id',[offerId]))).rows;

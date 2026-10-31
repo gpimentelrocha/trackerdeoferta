@@ -1,4 +1,5 @@
 import express from 'express';
+import { registerFinanceRoutes } from './finance.js';
 import { registerOperationRoutes } from './operation-routes.js';
 import { fileURLToPath } from 'node:url';
 import { validateLibraryUrl } from './library.js';
@@ -73,6 +74,7 @@ export function createApp(store, collector, { auth = createPersonalAccess(), sta
     res.status(204).end();
   });
   registerOperationRoutes(app, store.operation);
+  registerFinanceRoutes(app, store.finance);
   app.use('/api', (req, res) => res.status(404).json({ error: 'Rota não encontrada.' }));
   if (staticFiles) app.use(express.static(fileURLToPath(new URL('../public', import.meta.url))));
   app.use((err, req, res, next) => {

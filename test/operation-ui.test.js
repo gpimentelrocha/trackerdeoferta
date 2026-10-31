@@ -20,7 +20,7 @@ test('Minhas ofertas: produção completa, filtros, textos, links, edição, per
     await page.goto(`http://127.0.0.1:${server.address().port}`);
     await page.getByRole('heading',{name:'Oferta monitorada',exact:true}).waitFor();
     await page.getByRole('link',{name:/Minhas ofertas/}).click();
-    await page.getByRole('heading',{name:'Um lugar para cada ideia.',exact:true}).waitFor();
+    await page.getByText('O próximo resultado começa aqui.',{exact:true}).waitFor();
     await page.getByRole('button',{name:'＋ Criar minha oferta',exact:true}).click();
     await page.getByLabel('Nome da minha oferta',{exact:true}).fill('Minha oferta de skincare');
     await page.locator('#my-offer-form [name=niche]').fill('Beleza');
@@ -47,7 +47,7 @@ test('Minhas ofertas: produção completa, filtros, textos, links, edição, per
     assert.equal(await page.locator('#my-material-form [name=kind] option[value=script]').count(),0);
     assert.equal(await page.locator('[data-material-filter=creative], [data-material-filter=angle]').count(),0);
     assert.deepEqual(await page.locator('#my-material-form [name=kind] option').evaluateAll(options=>options.map(option=>option.value)),['copy']);
-    await page.getByRole('button',{name:/^Copys /}).click();
+    await page.locator('[data-material-filter=copy]').click();
     assert.equal(await page.locator('.material-card').count(),3);
     await page.getByLabel('Buscar materiais').fill('Vídeo UGC 01');
     assert.equal(await page.locator('.material-card').count(),1);
@@ -99,16 +99,19 @@ test('Minhas ofertas: produção completa, filtros, textos, links, edição, per
     assert.equal(await page.locator('.card-value strong').innerText(),'15');
     await page.setViewportSize({width:390,height:844});
     await page.getByRole('link',{name:/Minhas ofertas/}).click();
+    await page.getByRole('link',{name:/Minha oferta de skincare/}).click();
+    await page.locator('#my-tab-materials').click();
     await page.getByRole('heading',{name:'Vídeo UGC 01',exact:true}).waitFor();
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
     await page.screenshot({path:'/tmp/eletric-operation-mobile.png',fullPage:true});
     await page.getByRole('button',{name:'Excluir Vídeo UGC 01',exact:true}).click();
     await page.locator('#my-confirm-delete').click();
     await page.locator('#my-delete-dialog[open]').waitFor({state:'hidden'});
+    await page.getByRole('heading',{name:'Vídeo UGC 01',exact:true}).waitFor({state:'detached'});
     assert.equal(await page.getByRole('heading',{name:'Vídeo UGC 01',exact:true}).count(),0);
     await page.getByRole('button',{name:'Excluir oferta',exact:true}).click();
     await page.locator('#my-confirm-delete').click();
-    await page.getByRole('heading',{name:'Um lugar para cada ideia.',exact:true}).waitFor();
+    await page.getByText('O próximo resultado começa aqui.',{exact:true}).waitFor();
     assert.equal((await store.operation.list()).length,0);
     assert.equal(store.get(tracked.id).latest.count,15);
     assert.equal(collections,0);

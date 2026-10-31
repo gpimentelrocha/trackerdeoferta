@@ -276,7 +276,7 @@ async function routeView() {
   }
   if (!mine) operation.hide();
   if (!authenticated) return;
-  if (mine) await operation.show(location.hash.split('/')[1]);
+  if (mine) await operation.show(location.hash.split('/')[1],location.hash.split('/')[2]);
   else { await load(); operation.refreshCount(); renderEvolution(true); }
 }
 window.addEventListener('hashchange',routeView);

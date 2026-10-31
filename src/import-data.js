@@ -20,7 +20,7 @@ export async function importLocalData(store, path) {
   try {
     const a = await tx.execute('SELECT COUNT(*) AS n FROM offers');
     const b = await tx.execute('SELECT COUNT(*) AS n FROM snapshots');
-    const own = await tx.execute('SELECT (SELECT COUNT(*) FROM own_offers) + (SELECT COUNT(*) FROM own_materials) AS n');
+    const own = await tx.execute('SELECT (SELECT COUNT(*) FROM own_offers) + (SELECT COUNT(*) FROM own_materials) + (SELECT COUNT(*) FROM own_finance) AS n');
     if (Number(a.rows[0].n) || Number(b.rows[0].n) || Number(own.rows[0].n)) throw new Error('O Turso de destino deve estar vazio. Nenhum dado existente foi substituído.');
     for (const offer of offers) {
       const interrupted = ['queued', 'updating'].includes(offer.state);
@@ -31,7 +31,7 @@ export async function importLocalData(store, path) {
       for (const row of operation[table]) await tx.execute({sql:`INSERT INTO ${table}(${columns.join(',')}) VALUES(${columns.map(()=>'?').join(',')})`,args:columns.map(key=>key === 'script' ? row[key] ?? '' : key === 'kind' && ['script','creative','angle'].includes(row[key]) ? 'copy' : row[key])});
     }
     await tx.commit();
-    return { offers: offers.length, snapshots: snapshots.length, ownOffers:operation.own_offers.length, materials:operation.own_materials.length };
+    return { offers: offers.length, snapshots: snapshots.length, ownOffers:operation.own_offers.length, materials:operation.own_materials.length, finances:operation.own_finance.length };
   } catch (error) { await tx.rollback(); throw error; }
   finally { tx.close(); }
 }

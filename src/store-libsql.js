@@ -1,3 +1,4 @@
+import { createFinanceStore } from './finance.js';
 import { OPERATION_SCHEMA, createOperationStore } from './operation.js';
 import { createClient } from '@libsql/client/web';
 import { randomUUID } from 'node:crypto';
@@ -64,7 +65,7 @@ export async function createCloudStore({ client, url = process.env.TURSO_DATABAS
     return offers.rows[0] ? hydrate(offers.rows[0], snapshots.rows) : null;
   }
   return {
-    client, get, operation:createOperationStore(query=>client.execute(query),(queries,mode)=>client.batch(queries,mode)), limit: MAX_OFFERS,
+    client, get, finance:createFinanceStore(query=>client.execute(query)), operation:createOperationStore(query=>client.execute(query),(queries,mode)=>client.batch(queries,mode)), limit: MAX_OFFERS,
     async list() {
       const [offers, snapshots] = await client.batch([
         'SELECT * FROM offers ORDER BY created_at DESC',

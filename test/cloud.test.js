@@ -80,13 +80,16 @@ test('importação preserva histórico original e recusa sobrescrever Turso com 
   source.success(offer.id, result(290));
   const own = await source.operation.create({name:'Minha operação',notes:'Notas da oferta'});
   await source.operation.createMaterial(own.id,{kind:'copy',title:'Roteiro original',content:'Gancho e cenas',script:'Roteiro separado\nCena 1',angle:'Curiosidade'});
+  await source.finance.create({offer_id:own.id,type:'expense',category:'proxy',day:'2026-10-31',amount_cents:12345,description:'Proxy da operação'});
   source.db.exec("UPDATE own_materials SET kind='creative'");
   source.close();
   const destination = await database();
   try {
-    assert.deepEqual(await importLocalData(destination, path), { offers: 1, snapshots: 1, ownOffers:1, materials:1 });
+    assert.deepEqual(await importLocalData(destination, path), { offers: 1, snapshots: 1, ownOffers:1, materials:1, finances:1 });
     assert.equal((await destination.get(offer.id)).latest.count, 290);
     assert.equal((await destination.operation.get(own.id)).notes,'Notas da oferta');
+    assert.equal((await destination.finance.list())[0].amount_cents,12345);
+    assert.equal((await destination.finance.list())[0].offer_id,own.id);
     assert.equal((await destination.operation.materials(own.id))[0].content,'Gancho e cenas');
     assert.equal((await destination.operation.materials(own.id))[0].kind,'copy');
     assert.equal((await destination.operation.materials(own.id))[0].script,'Roteiro separado\nCena 1');

@@ -116,6 +116,7 @@ for (const cloud of [false,true]) test(`${cloud?'Turso':'SQLite'}: migra materia
     const old=await store.operation.createMaterial(own.id,{title:'Copy existente',content:'Minha copy antiga\nSem alterações'});
     // Reproduz o banco da versão anterior, que ainda não tinha a coluna.
     store.db.exec('ALTER TABLE own_materials DROP COLUMN script');
+    store.db.exec('DROP TABLE own_finance');
     store.close(); store=null;
     if (cloud) {
       imported=await createCloudStore({client:createClient({url:'file::memory:'})});
