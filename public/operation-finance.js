@@ -1,8 +1,7 @@
-import {EXPENSE_CATEGORIES,parseMoney,money,todayInBrazil,periodRange,summarizeEntries} from './finance-math.js';
+import {parseMoney,money,todayInBrazil,periodRange,summarizeEntries} from './finance-math.js';
 const $=selector=>document.querySelector(selector);
 const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const dayLabel=day=>day.split('-').reverse().join('/');
-const category=entry=>entry.type==='revenue' ? 'Faturamento' : EXPENSE_CATEGORIES[entry.category];
 const entryName=entry=>entry.current_offer_name || (entry.offer_name ? entry.offer_name+' (oferta excluída)' : 'Operação geral');
 function chart(summary) {
   if (!summary.days.length) return '<div class="finance-chart-empty"><span aria-hidden="true">↗</span><strong>O próximo resultado começa aqui.</strong><p>Adicione seu faturamento e suas despesas para acompanhar a evolução.</p></div>';
@@ -29,10 +28,16 @@ function chart(summary) {
   }).join('');
   return `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Faturamento e despesas por ${rows[0].day.length===10?'dia':rows[0].day.length===7?'mês':'ano'}" class="finance-svg">${grid}${bars}</svg><p class="finance-chart-note">Barras com os totais dos períodos que têm lançamentos. Passe o cursor ou use Tab para consultar os valores.</p>`;
 }
-export function initOperationFinance({api,toast,onOfferChange}) {
+export function initOperationFinance({api,toast,customOptions,onOfferChange}) {
   let offers=[],selected=null,entries=[],editing=null,deleting=null,ticket=0,range=periodRange('month');
   const form=$('#finance-entry-form');
-  form.elements.category.innerHTML=Object.entries(EXPENSE_CATEGORIES).map(([key,label])=>`<option value="${key}">${label}</option>`).join('');
+  const category=entry=>entry.type==='revenue'?'Faturamento':customOptions.label('expense_category',entry.category);
+  function refreshCategories(){
+    const value=form.elements.category.value;
+    form.elements.category.replaceChildren(...customOptions.list('expense_category').map(item=>new Option(item.label,item.value)));
+    form.elements.category.value=customOptions.list('expense_category').some(item=>item.value===value)?value:'ads';
+  }
+  refreshCategories();customOptions.subscribe(()=>{refreshCategories();if(entries.length)render();});
   $('#finance-from').value=range.from;$('#finance-to').value=range.to;
   const showError=(id,error)=>{$(id).textContent=error.message;$(id).hidden=false;};
   const scoped=()=>selected ? entries.filter(entry=>entry.offer_id===selected.id) : entries;
@@ -40,7 +45,7 @@ export function initOperationFinance({api,toast,onOfferChange}) {
     const query=$('#finance-search').value.toLocaleLowerCase('pt-BR').trim(),type=$('#finance-type-filter').value;
     const rows=scoped().filter(entry=>(type==='all'||entry.type===type)&&[entry.description,category(entry),entryName(entry)].some(value=>value.toLocaleLowerCase('pt-BR').includes(query)));
     $('#finance-entry-count').textContent=`${rows.length} ${rows.length===1?'lançamento':'lançamentos'}`;
-    $('#finance-entries').innerHTML=rows.length ? `<div class="finance-table-wrap"><table class="finance-table"><thead><tr><th>Data</th><th>Descrição / categoria</th><th>Oferta</th><th>Valor</th><th><span class="sr-only">Ações</span></th></tr></thead><tbody>${rows.map(entry=>`<tr data-entry-id="${entry.id}"><td>${dayLabel(entry.day)}</td><td><strong>${esc(entry.description||category(entry))}</strong><span class="finance-category-tag ${entry.type}">${category(entry)}</span></td><td>${esc(entryName(entry))}</td><td class="finance-entry-amount ${entry.type}">${entry.type==='expense'?'−':'+'} ${money(entry.amount_cents)}</td><td><div class="finance-row-actions"><button class="text-button" data-finance-action="edit" aria-label="Editar lançamento ${esc(entry.description||category(entry))}">Editar</button><button class="text-button delete" data-finance-action="delete" aria-label="Excluir lançamento ${esc(entry.description||category(entry))}">Excluir</button></div></td></tr>`).join('')}</tbody></table></div>` : `<div class="finance-ledger-empty"><strong>${query||type!=='all'?'Nenhum lançamento corresponde aos filtros.':'Nenhum lançamento neste período.'}</strong><p>${query||type!=='all'?'Ajuste a busca ou o tipo de movimentação.':'Registre uma despesa ou o faturamento para começar a acompanhar seu lucro.'}</p></div>`;
+    $('#finance-entries').innerHTML=rows.length ? `<div class="finance-table-wrap"><table class="finance-table"><thead><tr><th>Data</th><th>Descrição / categoria</th><th>Oferta</th><th>Valor</th><th><span class="sr-only">Ações</span></th></tr></thead><tbody>${rows.map(entry=>`<tr data-entry-id="${entry.id}"><td>${dayLabel(entry.day)}</td><td><strong>${esc(entry.description||category(entry))}</strong><span class="finance-category-tag ${entry.type}">${esc(category(entry))}</span></td><td>${esc(entryName(entry))}</td><td class="finance-entry-amount ${entry.type}">${entry.type==='expense'?'−':'+'} ${money(entry.amount_cents)}</td><td><div class="finance-row-actions"><button class="text-button" data-finance-action="edit" aria-label="Editar lançamento ${esc(entry.description||category(entry))}">Editar</button><button class="text-button delete" data-finance-action="delete" aria-label="Excluir lançamento ${esc(entry.description||category(entry))}">Excluir</button></div></td></tr>`).join('')}</tbody></table></div>` : `<div class="finance-ledger-empty"><strong>${query||type!=='all'?'Nenhum lançamento corresponde aos filtros.':'Nenhum lançamento neste período.'}</strong><p>${query||type!=='all'?'Ajuste a busca ou o tipo de movimentação.':'Registre uma despesa ou o faturamento para começar a acompanhar seu lucro.'}</p></div>`;
   }
   function render() {
     const summary=summarizeEntries(scoped());
@@ -52,7 +57,7 @@ export function initOperationFinance({api,toast,onOfferChange}) {
     $('#finance-chart').innerHTML=chart(summary);
     $('#finance-chart-total').textContent=`${scoped().length} lançamentos`;
     const categories=Object.entries(summary.categories).sort((a,b)=>b[1]-a[1]);
-    $('#finance-breakdown').innerHTML=categories.length ? categories.map(([key,value])=>`<div class="finance-category-row"><div><span>${EXPENSE_CATEGORIES[key]}</span><strong>${money(value)}</strong></div><div class="finance-category-track"><svg viewBox="0 0 100 4" preserveAspectRatio="none" aria-hidden="true"><rect width="${Math.round(value/summary.expense*100)}" height="4" rx="2"/></svg></div></div>`).join('') : '<div class="finance-breakdown-empty"><span aria-hidden="true">◎</span><p>Suas despesas por categoria aparecerão aqui.</p></div>';
+    $('#finance-breakdown').innerHTML=categories.length ? categories.map(([key,value])=>`<div class="finance-category-row"><div><span>${esc(customOptions.label('expense_category',key))}</span><strong>${money(value)}</strong></div><div class="finance-category-track"><svg viewBox="0 0 100 4" preserveAspectRatio="none" aria-hidden="true"><rect width="${Math.round(value/summary.expense*100)}" height="4" rx="2"/></svg></div></div>`).join('') : '<div class="finance-breakdown-empty"><span aria-hidden="true">◎</span><p>Suas despesas por categoria aparecerão aqui.</p></div>';
     $('#finance-scope-hint').textContent=selected ? 'Despesas gerais da operação ficam fora do resultado desta oferta.' : 'Custos gerais entram no total da operação e não são rateados entre ofertas.';
     renderEntries();
   }
@@ -64,7 +69,7 @@ export function initOperationFinance({api,toast,onOfferChange}) {
     try {
       range=periodRange($('#finance-period').value,todayInBrazil(),$('#finance-from').value,$('#finance-to').value);
       const query=new URLSearchParams();if(range.from)query.set('from',range.from);if(range.to)query.set('to',range.to);
-      const data=await api('/api/finance?'+query);
+      const [data]=await Promise.all([api('/api/finance?'+query),customOptions.ready()]);
       if(current!==ticket)return;
       entries=data.entries;render();
     } catch(error) {

@@ -599,3 +599,9 @@ td { padding: 13px 8px; border-bottom: 1px solid #303c22; color: #c3ceb4; }
   #my-offers-view .operation-detail-heading { padding: 17px; }
   #my-offers-view .operation-detail-heading h2 { font-size: 18px; }
 }
+
+/* Opções personalizadas reutilizáveis */
+.option-add-button { align-self: flex-start; width: fit-content; font-size: 10px; color: #e8cf73; padding: 4px 0; text-align: left; }
+#option-create-dialog { width: 430px; max-height: calc(100dvh - 32px); overflow-y: auto; }
+#option-create-dialog h2 { font-size: 20px; }
+#option-create-dialog .option-create-hint { font-size: 11px; margin: 10px 0; }

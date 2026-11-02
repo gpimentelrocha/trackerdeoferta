@@ -8,7 +8,7 @@ const statuses = {draft:'Rascunho',ready:'Pronto',testing:'Em teste',winner:'Ven
 const offerFields = ['name','niche','status','sales_url','notes'];
 const materialFields = ['kind','title','status','angle','format','url','content','script'];
 
-export function initMyOffers({api,toast}) {
+export function initMyOffers({api,toast,customOptions}) {
   let offers = [], offer = null, filter = 'all', request = 0, activeTab = 'finance';
   let editingOfferId = null, editingMaterialId = null, materialOfferId = null, deleting = null, reading = null;
   const errorAt = (id,error) => { $(id).textContent = error.message; $(id).hidden = false; };
@@ -49,7 +49,7 @@ export function initMyOffers({api,toast}) {
     $('#material-search').addEventListener('input',renderMaterials);
     renderMaterials();
   }
-  const finance = initOperationFinance({api,toast,onOfferChange:id=>{location.hash=selectedPath(id);}});
+  const finance = initOperationFinance({api,toast,customOptions,onOfferChange:id=>{location.hash=selectedPath(id);}});
   function renderTab() {
     const materialTab=activeTab==='materials' && Boolean(offer);
     $('#finance-workspace').hidden=materialTab;

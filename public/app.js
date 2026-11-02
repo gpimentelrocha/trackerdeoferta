@@ -1,3 +1,4 @@
+import { initCustomOptions } from './custom-options.js';
 import { initMyOffers } from './my-offers.js';
 import { createDailyChart, valueLabel, fullDate } from './daily-chart.js';
 const $ = selector => document.querySelector(selector);
@@ -263,7 +264,8 @@ $('#logout').addEventListener('click', async () => {
   try { await api('/api/logout', { method: 'POST', body: '{}' }); offers = []; render(); showLogin(); }
   catch (error) { toast(error.message); }
 });
-const operation = initMyOffers({api,toast});
+const customOptions = initCustomOptions({api,toast});
+const operation = initMyOffers({api,toast,customOptions});
 async function routeView() {
   const mine = location.hash === '#minhas-ofertas' || location.hash.startsWith('#minhas-ofertas/');
   $('#overview-view').hidden = mine;
@@ -285,6 +287,6 @@ try {
   authenticated = session.authenticated;
   $('#logout').hidden = !session.required;
   await routeView();
-  if (!authenticated) showLogin();
+  if (!authenticated) showLogin(); else customOptions.ready().catch(()=>{});
 } catch (error) { $('#connection-error').textContent = error.message; $('#connection-error').hidden = false; }
 setInterval(() => { if (!document.hidden && !$('#overview-view').hidden) load(); }, 5000);

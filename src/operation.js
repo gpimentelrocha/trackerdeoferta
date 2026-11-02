@@ -1,3 +1,4 @@
+import { CUSTOM_OPTIONS_SCHEMA, CUSTOM_OPTIONS_COLUMNS } from './custom-options.js';
 import { FINANCE_SCHEMA, FINANCE_COLUMNS } from './finance.js';
 import { randomUUID } from 'node:crypto';
 
@@ -15,6 +16,7 @@ export const OPERATION_SCHEMA = [
     created_at TEXT NOT NULL, updated_at TEXT NOT NULL
   )`,
   'CREATE INDEX IF NOT EXISTS own_materials_offer ON own_materials(offer_id, updated_at)',
+  ...CUSTOM_OPTIONS_SCHEMA,
   ...FINANCE_SCHEMA
 ];
 const offerRules = { name:100, niche:80, status:['idea','production','testing','scaling','paused'], sales_url:'url', notes:10000 };
@@ -22,6 +24,7 @@ const materialRules = { title:120, kind:['copy'], content:30000, script:30000, a
 export const OPERATION_TABLE_COLUMNS = {
   own_offers:['id',...Object.keys(offerRules),'created_at','updated_at'],
   own_materials:['id','offer_id',...Object.keys(materialRules),'created_at','updated_at'],
+  custom_options:CUSTOM_OPTIONS_COLUMNS,
   own_finance:FINANCE_COLUMNS
 };
 function fail(message, status = 400) { const error = new Error(message); error.status = status; throw error; }

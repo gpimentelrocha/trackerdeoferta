@@ -1,0 +1,63 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {chromium} from 'playwright-core';
+import {createStore} from '../src/store.js';
+import {createApp} from '../src/app.js';
+import {browserExecutable} from '../src/library.js';
+test('criação de categoria, nicho, ângulo e formato sem perder o formulário e com reutilização após recarregar',async()=>{
+  const store=createStore(':memory:');const server=createApp(store,{}).listen(0,'127.0.0.1');await new Promise(resolve=>server.once('listening',resolve));
+  const browser=await chromium.launch({executablePath:browserExecutable(),args:['--no-sandbox']});
+  try{
+    const page=await browser.newPage({viewport:{width:1440,height:1000}}),errors=[];page.on('pageerror',error=>errors.push(error.message));
+    await page.goto(`http://127.0.0.1:${server.address().port}/#minhas-ofertas`);
+    await page.getByText('O próximo resultado começa aqui.',{exact:true}).waitFor();
+    async function createOption(button,label){
+      await page.getByRole('button',{name:button,exact:true}).click();
+      await page.getByLabel('Nome da nova opção',{exact:true}).fill(label);
+      await page.getByRole('button',{name:'Criar e selecionar',exact:true}).click();
+      await page.locator('#option-create-dialog[open]').waitFor({state:'hidden'});
+    }
+    await page.locator('#finance-add-expense').click();
+    await page.getByLabel('Valor em reais',{exact:true}).fill('55,90');
+    await page.locator('#finance-entry-form [name=description]').fill('Despesa personalizada');
+    await createOption('＋ Nova categoria','Edição <b>especial</b>');
+    assert.equal(await page.getByLabel('Valor em reais',{exact:true}).inputValue(),'55,90');
+    assert.equal(await page.locator('#finance-entry-form [name=description]').inputValue(),'Despesa personalizada');
+    const customId=await page.getByLabel('Categoria da despesa',{exact:true}).inputValue();assert.match(customId,/^custom_/);
+    await page.getByRole('button',{name:'Salvar lançamento',exact:true}).click();
+    await page.locator('#finance-breakdown').getByText('Edição <b>especial</b>',{exact:true}).waitFor();
+    assert.equal(await page.locator('#finance-breakdown b, #finance-entries b').count(),0);
+    await page.reload();
+    await page.locator('#finance-breakdown').getByText('Edição <b>especial</b>',{exact:true}).waitFor();
+    await page.getByRole('button',{name:'Editar lançamento Despesa personalizada',exact:true}).click();
+    assert.equal(await page.getByLabel('Categoria da despesa',{exact:true}).inputValue(),customId);
+    await page.getByRole('button',{name:'Fechar lançamento',exact:true}).click();
+    await page.locator('#my-new-offer').click();
+    await page.getByLabel('Nome da minha oferta',{exact:true}).fill('Minha oferta personalizada');
+    await createOption('＋ Novo nicho','Horticultura');
+    assert.equal(await page.locator('#my-offer-form [name=niche]').inputValue(),'Horticultura');
+    await page.getByRole('button',{name:'Salvar oferta',exact:true}).click();
+    await page.getByRole('heading',{name:'Minha oferta personalizada',exact:true}).waitFor();
+    await page.locator('[data-operation-action=new-material]').first().click();
+    await page.getByLabel('Título do material',{exact:true}).fill('Copy personalizada');
+    await page.getByLabel('Texto ou copy (opcional)',{exact:true}).fill('Minha copy original.');
+    await createOption('＋ Novo ângulo','Um novo começo');
+    await createOption('＋ Novo formato','Entrevista de rua');
+    assert.equal(await page.getByLabel('Ângulo do criativo',{exact:true}).inputValue(),'Um novo começo');
+    assert.equal(await page.getByLabel('Formato do criativo',{exact:true}).inputValue(),'Entrevista de rua');
+    assert.equal(await page.getByLabel('Texto ou copy (opcional)',{exact:true}).inputValue(),'Minha copy original.');
+    await page.getByRole('button',{name:'Salvar material',exact:true}).click();
+    await page.getByRole('heading',{name:'Copy personalizada',exact:true}).waitFor();
+    await page.reload();await page.getByRole('heading',{name:'Copy personalizada',exact:true}).waitFor();
+    assert.equal(await page.locator('#niche-options option[value=Horticultura]').count(),1);
+    assert.equal(await page.locator('#creative-angles option').filter({hasText:'Um novo começo'}).count(),1);
+    assert.equal(await page.locator('#creative-formats option').filter({hasText:'Entrevista de rua'}).count(),1);
+    await page.getByRole('button',{name:'Editar material',exact:true}).click();
+    await page.setViewportSize({width:390,height:844});
+    assert.equal(await page.getByLabel('Formato do criativo',{exact:true}).inputValue(),'Entrevista de rua');
+    await page.getByRole('button',{name:'＋ Novo formato',exact:true}).scrollIntoViewIfNeeded();
+    await page.screenshot({path:'/tmp/eletric-custom-options-mobile.png',fullPage:false});
+    assert.equal(await page.locator('#my-material-dialog').evaluate(dialog=>dialog.scrollWidth>dialog.clientWidth),false);
+    assert.deepEqual(errors,[]);
+  }finally{await browser.close();await new Promise(resolve=>server.close(resolve));store.close();}
+});

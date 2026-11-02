@@ -1,3 +1,4 @@
+import { createCustomOptionsStore } from './custom-options.js';
 import { createFinanceStore } from './finance.js';
 import { OPERATION_SCHEMA, createOperationStore } from './operation.js';
 import { DatabaseSync } from 'node:sqlite';
@@ -54,7 +55,7 @@ export function createStore(path) {
     return attachOfferAnalysis(offer, history);
   }
   return {
-    db, get, operation, finance:createFinanceStore(executeOperation),
+    db, get, operation, finance:createFinanceStore(executeOperation), options:createCustomOptionsStore(executeOperation),
     list: () => db.prepare('SELECT id FROM offers ORDER BY created_at DESC').all().map(row => get(row.id)),
     create(name, url, details = {}) {
       const id = randomUUID();

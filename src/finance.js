@@ -1,3 +1,4 @@
+import { createCustomOptionsStore } from './custom-options.js';
 import { randomUUID } from 'node:crypto';
 import { EXPENSE_CATEGORIES, MAX_AMOUNT_CENTS, validDay } from '../public/finance-math.js';
 export const FINANCE_COLUMNS = ['id','offer_id','offer_name','type','category','day','amount_cents','description','created_at','updated_at'];
@@ -15,7 +16,8 @@ export function financeInput(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) fail('Informe os dados do lançamento.');
   const {type,category,day,amount_cents}=input;
   if (!['revenue','expense'].includes(type)) fail('Escolha faturamento ou despesa.');
-  if ((type==='revenue' && category!=='sales') || (type==='expense' && !Object.hasOwn(EXPENSE_CATEGORIES,category))) fail('Escolha uma categoria válida.');
+  const builtin=type==='revenue'?category==='sales':Object.hasOwn(EXPENSE_CATEGORIES,category);
+  if (!builtin && (type!=='expense'||typeof category!=='string'||!/^custom_[0-9a-f-]{36}$/.test(category))) fail('Escolha uma categoria válida.');
   if (!validDay(day)) fail('Informe uma data válida entre 2000 e 2100.');
   if (!Number.isSafeInteger(amount_cents) || amount_cents <= 0 || amount_cents > MAX_AMOUNT_CENTS) fail('Informe um valor positivo em centavos, de até R$ 1 bilhão.');
   const offer_id=input.offer_id === undefined || input.offer_id === '' ? null : input.offer_id;
@@ -30,6 +32,7 @@ export function financeRange(query) {
   return {from,to};
 }
 export function createFinanceStore(execute) {
+  const options=createCustomOptionsStore(execute);
   const sql=(sql,args=[])=>({sql,args});
   const get=async id=>(await execute(sql('SELECT * FROM own_finance WHERE id=?',[id]))).rows[0] || null;
   async function offerName(id) {
@@ -46,6 +49,7 @@ export function createFinanceStore(execute) {
     },
     async create(input) {
       const values=financeInput(input), id=randomUUID(), now=new Date().toISOString();
+      if(values.type==='expense'&&!await options.has('expense_category',values.category))fail('Escolha uma categoria cadastrada para este tipo de movimentação.');
       const offer_name=await offerName(values.offer_id);
       // SELECT não insere se a oferta for removida entre a validação e a escrita.
       const result=await execute(sql(`INSERT INTO own_finance(id,offer_id,offer_name,type,category,day,amount_cents,description,created_at,updated_at)
@@ -58,6 +62,7 @@ export function createFinanceStore(execute) {
       const old=await get(id);
       if (!old) return null;
       const values=financeInput({...old,...input});
+      if(values.type==='expense'&&!await options.has('expense_category',values.category))fail('Escolha uma categoria cadastrada para este tipo de movimentação.');
       const offer_name=Object.hasOwn(input,'offer_id') ? await offerName(values.offer_id) : values.offer_id ? await offerName(values.offer_id) : old.offer_name;
       const result=await execute(sql(`UPDATE own_finance SET offer_id=?,offer_name=?,type=?,category=?,day=?,amount_cents=?,description=?,updated_at=? WHERE id=?
         AND (? IS NULL OR EXISTS(SELECT 1 FROM own_offers WHERE id=?))`,[values.offer_id,offer_name,values.type,values.category,values.day,values.amount_cents,values.description,new Date().toISOString(),id,values.offer_id,values.offer_id]));

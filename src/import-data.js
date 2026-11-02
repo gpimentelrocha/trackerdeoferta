@@ -20,7 +20,7 @@ export async function importLocalData(store, path) {
   try {
     const a = await tx.execute('SELECT COUNT(*) AS n FROM offers');
     const b = await tx.execute('SELECT COUNT(*) AS n FROM snapshots');
-    const own = await tx.execute('SELECT (SELECT COUNT(*) FROM own_offers) + (SELECT COUNT(*) FROM own_materials) + (SELECT COUNT(*) FROM own_finance) AS n');
+    const own = await tx.execute('SELECT (SELECT COUNT(*) FROM own_offers) + (SELECT COUNT(*) FROM own_materials) + (SELECT COUNT(*) FROM own_finance) + (SELECT COUNT(*) FROM custom_options) AS n');
     if (Number(a.rows[0].n) || Number(b.rows[0].n) || Number(own.rows[0].n)) throw new Error('O Turso de destino deve estar vazio. Nenhum dado existente foi substituído.');
     for (const offer of offers) {
       const interrupted = ['queued', 'updating'].includes(offer.state);
